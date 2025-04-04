@@ -24,6 +24,14 @@ function setup() {
   const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
   scene.add(ambientLight);
 
+  const cameralight = new THREE.PointLight(new THREE.Color(1, 1, 1), 1);
+  cameralight.position.set(0, 5, 0);
+  cameralight.visible = true;
+
+  var hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+  hemiLight.position.set(0, 1, 0);
+  scene.add(hemiLight);
+
   camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
@@ -38,6 +46,7 @@ function setup() {
     antialias: true,
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
+
   window.addEventListener("resize", onWindowResize);
 
   controls = new OrbitControls(camera, renderer.domElement);

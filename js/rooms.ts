@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import { loadModelAtGroundLevel } from "./loader";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
+import { TWO_SEATER_COUCH, FLOOR_LAMP } from "../public/models";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 export const RoomConstructor = (gltfLoader: GLTFLoader) => {
@@ -19,7 +21,7 @@ export const RoomConstructor = (gltfLoader: GLTFLoader) => {
     const { width, height, depth } = roomDimensions;
 
     // Walls
-    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0xf5f5f5 });
+    const wallMaterial = new THREE.MeshBasicMaterial({ color: 0xff50aa });
 
     // Back wall (North)
     if (roomType === "Bedroom" || roomType === "Dining Room") {
@@ -61,8 +63,8 @@ export const RoomConstructor = (gltfLoader: GLTFLoader) => {
   }
 
   function createLivingRoom() {
-    const width = 10;
-    const depth = 10;
+    const width = 50;
+    const depth = 50;
     const x = 0;
     const z = 0;
     const livingRoom = createRoom("Living Room", x, z, {
@@ -83,15 +85,15 @@ export const RoomConstructor = (gltfLoader: GLTFLoader) => {
 
     loadModelAtGroundLevel(
       gltfLoader,
-      "./models/Two Seater Couch.glb",
+      TWO_SEATER_COUCH,
       livingRoom,
       new THREE.Vector3(0, 0, 0)
     );
     loadModelAtGroundLevel(
       gltfLoader,
-      "./models/Floor Lamp.glb",
+      FLOOR_LAMP,
       livingRoom,
-      new THREE.Vector3(0, 0, 0)
+      new THREE.Vector3(2.5, 0, 0)
     );
 
     return livingRoom;
