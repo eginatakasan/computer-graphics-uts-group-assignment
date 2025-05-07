@@ -58,6 +58,27 @@ export const CEILING_LAMP_VARIANT_3 = "/models/Ceiling Lamp-OTJPOdps4p.glb";
 export const CEILING_LAMP_VARIANT_4 = "/models/Ceiling Lamp-76VCPcN5C8.glb";
 export const BUNK_BED = "/models/Bunk Bed.glb";
 
+// New Furniture Models
+export const TABLE = "/models/Table.glb";
+export const TABLE_VARIANT_1 = "/models/Table-yYEEJzKxb4.glb";
+export const STOOL = "/models/Stool.glb";
+export const SOFA = "/models/Sofa.glb";
+export const SOFA_VARIANT_1 = "/models/Sofa-vuo7KBehok.glb";
+export const SOFA_VARIANT_2 = "/models/Sofa-X5kQPKzAWp.glb";
+export const SHORT_CLOSET = "/models/Short Closet.glb";
+export const OFFICE_CHAIR = "/models/Office Chair.glb";
+export const NIGHT_STAND = "/models/Night Stand.glb";
+export const DOOR = "/models/Door.glb";
+export const DOOR_VARIANT_1 = "/models/Door-QiMLelTBId.glb";
+export const DOOR_VARIANT_2 = "/models/Door-JuTzNjtD54.glb";
+export const DESK = "/models/Desk.glb";
+export const CLOSET = "/models/Closet.glb";
+export const CHAIR = "/models/Chair.glb";
+export const CHAIR_VARIANT_1 = "/models/Chair-9kIjuRFMFw.glb";
+export const BOOKCASE_WITH_BOOKS = "/models/Bookcase with Books.glb";
+export const BED_TWIN = "/models/Bed Twin.glb";
+export const BED_DOUBLE = "/models/Bed Double.glb";
+
 // Kitchen Items
 export const WASH_BRUSH = "/models/Wash Brush.glb";
 export const TOASTER = "/models/Toaster.glb";
@@ -173,6 +194,27 @@ export const modelMap = {
   "Ceiling Lamp Variant 3": CEILING_LAMP_VARIANT_3,
   "Ceiling Lamp Variant 4": CEILING_LAMP_VARIANT_4,
   "Bunk Bed": BUNK_BED,
+
+  // New Furniture Models
+  Table: TABLE,
+  "Table Variant 1": TABLE_VARIANT_1,
+  Stool: STOOL,
+  Sofa: SOFA,
+  "Sofa Variant 1": SOFA_VARIANT_1,
+  "Sofa Variant 2": SOFA_VARIANT_2,
+  "Short Closet": SHORT_CLOSET,
+  "Office Chair": OFFICE_CHAIR,
+  "Night Stand": NIGHT_STAND,
+  Door: DOOR,
+  "Door Variant 1": DOOR_VARIANT_1,
+  "Door Variant 2": DOOR_VARIANT_2,
+  Desk: DESK,
+  Closet: CLOSET,
+  Chair: CHAIR,
+  "Chair Variant 1": CHAIR_VARIANT_1,
+  "Bookcase with Books": BOOKCASE_WITH_BOOKS,
+  "Bed Twin": BED_TWIN,
+  "Bed Double": BED_DOUBLE,
 
   // Kitchen Items
   "Wash Brush": WASH_BRUSH,

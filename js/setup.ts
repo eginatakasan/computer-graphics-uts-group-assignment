@@ -18,6 +18,59 @@ function onWindowResize() {
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+async function loadPositions(path?: string) {
+  if (path) {
+    try {
+      const response = await fetch(path);
+      const json = await response.json();
+
+      // Clear existing objects from scene
+      while (scene.children.length > 0) {
+        scene.remove(scene.children[0]);
+      }
+
+      // Load the objects from JSON
+      new THREE.ObjectLoader().parse(json, (object) => {
+        scene.add(object);
+      });
+    } catch (error) {
+      console.error("Error loading positions:", error);
+    }
+    return;
+  }
+
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = ".json";
+
+  input.onchange = async (e: Event) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const json = JSON.parse(event.target?.result as string);
+
+          // Clear existing objects from scene
+          while (scene.children.length > 0) {
+            scene.remove(scene.children[0]);
+          }
+
+          // Load the objects from JSON
+          new THREE.ObjectLoader().parse(json, (object) => {
+            scene.add(object);
+          });
+        } catch (error) {
+          console.error("Error loading positions:", error);
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  input.click();
+}
+
 function setup() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xaaaaaa);
@@ -51,10 +104,20 @@ function setup() {
   controls.dampingFactor = 0.25;
   controls.enableZoom = true;
 
-  const livingRoom = roomConstructor.createLivingRoom(
-    new THREE.Vector3(0, 0, 0)
-  );
-  scene.add(livingRoom);
+  // Add load positions button
+  // const loadButton = document.createElement("button");
+  // loadButton.textContent = "Load Positions";
+  // loadButton.style.position = "absolute";
+  // loadButton.style.top = "10px";
+  // loadButton.style.left = "10px";
+  // loadButton.style.zIndex = "1000";
+  // loadButton.onclick = loadPositions;
+  // document.body.appendChild(loadButton);
+
+  // const livingRoom = roomConstructor.createLivingRoom(
+  //   new THREE.Vector3(0, 0, 0)
+  // );
+  // scene.add(livingRoom);
 }
 
 function animate() {
@@ -63,4 +126,5 @@ function animate() {
 }
 
 setup();
+loadPositions("/positions/example.json");
 renderer.setAnimationLoop(animate);
