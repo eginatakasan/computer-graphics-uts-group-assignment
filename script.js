@@ -383,7 +383,7 @@ function animate() {
     const inputDirection = new THREE.Vector3( // Local direction based on input
       Number(moveRight) - Number(moveLeft),
       0,
-      Number(moveForward) - Number(moveBackward)
+      Number(moveBackward) - Number(moveForward)
     );
 
     if (inputDirection.lengthSq() > 0) {
