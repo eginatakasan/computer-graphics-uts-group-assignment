@@ -4,12 +4,15 @@ import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
 import { Controller } from "./Controller";
 import { SceneSetup } from "./SceneSetup";
 import { DOOR } from "../../public/models";
+import { Object3D } from "three";
+import { Object3DEventMap } from "three";
+import { Intersection } from "three";
 
 const roomSize = 10;
 const wallHeight = 3;
 const wallThickness = 0.1;
-const doorWidth = 1.7486155033111568;
-const doorHeight = 2.51184463192967;
+const doorWidth = 1.7;
+const doorHeight = 2.5;
 
 export class ObjectLoader {
   private loader: GLTFLoader;
@@ -334,36 +337,45 @@ export class ObjectLoader {
       true
     );
 
-    for (const intersect of intersects) {
-      const wall = intersect.object;
-      if (wall.name.includes("Wall")) {
-        // Create new door instance
-        const door = this.doorModel.clone();
-        // Position door at intersection point but keep y at 0
-        const position = new THREE.Vector3(
-          Math.round(intersect.point.x / 2) * 2,
-          0, // Set y to ground level
-          Math.round(intersect.point.z / 2) * 2
-        );
-        door.position.copy(position);
-
-        // Align door with wall
-        const wallNormal = intersect.face?.normal;
-        if (wallNormal) {
-          door.lookAt(
-            position.x + wallNormal.x,
-            position.y + wallNormal.y,
-            position.z + wallNormal.z
-          );
+    var intersectedWalls: Intersection<Object3D<Object3DEventMap>>[] | null =
+      [];
+    intersects.find((intersect) => {
+      if (intersect.object.name.includes("Wall")) {
+        if (intersectedWalls.length <= 2) {
+          intersectedWalls.push(intersect);
+          if (intersectedWalls.length === 2) {
+            return true;
+          }
         }
-
-        // Create hole in the wall
-        this.makeAHole(wall as THREE.Mesh, door, position);
-
-        this.scene.add(door);
-        this.placedObjects.push(door);
-        break;
       }
+    });
+
+    for (const wall of intersectedWalls) {
+      // Create new door instance
+      const door = this.doorModel.clone();
+      // Position door at intersection point but keep y at 0
+      const position = new THREE.Vector3(
+        Math.round(wall.point.x / 2) * 2,
+        0, // Set y to ground level
+        Math.round(wall.point.z / 2) * 2
+      );
+      door.position.copy(position);
+
+      // Align door with wall
+      const wallNormal = wall.face?.normal;
+      if (wallNormal) {
+        door.lookAt(
+          position.x + wallNormal.x,
+          position.y + wallNormal.y,
+          position.z + wallNormal.z
+        );
+      }
+
+      // Create hole in the wall
+      this.makeAHole(wall.object as THREE.Mesh, door, position);
+
+      this.scene.add(door);
+      this.placedObjects.push(door);
     }
   };
 
