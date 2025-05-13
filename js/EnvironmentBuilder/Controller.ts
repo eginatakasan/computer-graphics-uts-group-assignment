@@ -146,9 +146,9 @@ export class Controller {
         event.object.position.y = 0;
 
         const newPosition = new THREE.Vector3(
-          Math.round(event.object.position.x / 2) * 2,
+          event.object.position.x,
           0,
-          Math.round(event.object.position.z / 2) * 2
+          event.object.position.z
         );
         event.object.position.copy(newPosition);
 

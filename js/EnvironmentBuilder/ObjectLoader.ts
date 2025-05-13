@@ -8,8 +8,8 @@ import { DOOR } from "../../public/models";
 const roomSize = 10;
 const wallHeight = 3;
 const wallThickness = 0.1;
-const doorWidth = 2;
-const doorHeight = 2.2;
+const doorWidth = 1.7486155033111568;
+const doorHeight = 2.51184463192967;
 
 export class ObjectLoader {
   private loader: GLTFLoader;
@@ -164,8 +164,8 @@ export class ObjectLoader {
     // Find intersection point
     const intersectionPoint = new THREE.Vector3();
     this.raycaster.ray.intersectPlane(plane, intersectionPoint);
-    intersectionPoint.x = Math.round(intersectionPoint.x / 10) * 10;
-    intersectionPoint.z = Math.round(intersectionPoint.z / 10) * 10;
+    intersectionPoint.x = Math.round(intersectionPoint.x / 5) * 5;
+    intersectionPoint.z = Math.round(intersectionPoint.z / 5) * 5;
 
     return intersectionPoint;
   }
@@ -257,6 +257,108 @@ export class ObjectLoader {
 
     return room;
   }
+
+  private makeAHole(
+    wall: THREE.Mesh,
+    door: THREE.Group,
+    position: THREE.Vector3
+  ): void {
+    // Get door dimensions from the model
+    const doorBox = new THREE.Box3().setFromObject(door);
+
+    // Create a shape for the wall
+    const wallBox = new THREE.Box3().setFromObject(wall);
+    const wallSize = wallBox.getSize(new THREE.Vector3());
+    const wallWidth = wallSize.x;
+    const wallHeight = wallSize.y;
+
+    const shape = new THREE.Shape();
+    shape.moveTo(-wallWidth / 2, wallHeight / 2);
+    shape.lineTo(-wallWidth / 2, -wallHeight / 2);
+    shape.lineTo(wallWidth / 2, -wallHeight / 2);
+    shape.lineTo(wallWidth / 2, wallHeight / 2);
+    shape.lineTo(-wallWidth / 2, wallHeight / 2);
+
+    // Convert door position to wall's local space
+    const doorPosition = position.clone();
+    wall.worldToLocal(doorPosition);
+
+    // Create hole path
+    const hole = new THREE.Path();
+    const holeWidth = doorWidth - wallThickness;
+    const holeHeight = doorHeight - wallThickness;
+
+    // Position hole at ground level (y=0)
+    const holeY = -wallHeight / 2 + holeHeight / 2; // This centers the hole vertically at ground level
+
+    hole.moveTo(doorPosition.x - holeWidth / 2, holeY + holeHeight / 2);
+    hole.lineTo(doorPosition.x - holeWidth / 2, holeY - holeHeight / 2);
+    hole.lineTo(doorPosition.x + holeWidth / 2, holeY - holeHeight / 2);
+    hole.lineTo(doorPosition.x + holeWidth / 2, holeY + holeHeight / 2);
+    hole.lineTo(doorPosition.x - holeWidth / 2, holeY + holeHeight / 2);
+
+    shape.holes.push(hole);
+
+    // Create extruded geometry with exact wall thickness
+    const extrudeSettings = {
+      amount: wallThickness,
+      bevelEnabled: false,
+    };
+
+    const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    extrudeGeometry.translate(0, 0, -wallThickness / 2);
+
+    // Update wall geometry
+    wall.geometry.dispose();
+    wall.geometry = extrudeGeometry;
+  }
+
+  private handleDoorPlacement = (event: MouseEvent): void => {
+    if (!this.doorModel) return;
+
+    const mouse = new THREE.Vector2(
+      (event.clientX / this.canvas.clientWidth) * 2 - 1,
+      -(event.clientY / this.canvas.clientHeight) * 2 + 1
+    );
+
+    this.raycaster.setFromCamera(mouse, this.camera);
+    const intersects = this.raycaster.intersectObjects(
+      this.scene.children,
+      true
+    );
+
+    for (const intersect of intersects) {
+      const wall = intersect.object;
+      if (wall.name.includes("Wall")) {
+        // Create new door instance
+        const door = this.doorModel.clone();
+        // Position door at intersection point but keep y at 0
+        const position = new THREE.Vector3(
+          Math.round(intersect.point.x / 5) * 5,
+          0, // Set y to ground level
+          Math.round(intersect.point.z / 5) * 5
+        );
+        door.position.copy(position);
+
+        // Align door with wall
+        const wallNormal = intersect.face?.normal;
+        if (wallNormal) {
+          door.lookAt(
+            position.x + wallNormal.x,
+            position.y + wallNormal.y,
+            position.z + wallNormal.z
+          );
+        }
+
+        // Create hole in the wall
+        this.makeAHole(wall as THREE.Mesh, door, position);
+
+        this.scene.add(door);
+        this.placedObjects.push(door);
+        break;
+      }
+    }
+  };
 
   private toggleRoomTool(): void {
     this.isRoomToolActive = !this.isRoomToolActive;
@@ -633,50 +735,6 @@ export class ObjectLoader {
             position.z + wallNormal.z
           );
         }
-        break;
-      }
-    }
-  };
-
-  private handleDoorPlacement = (event: MouseEvent): void => {
-    if (!this.doorModel) return;
-
-    const mouse = new THREE.Vector2(
-      (event.clientX / this.canvas.clientWidth) * 2 - 1,
-      -(event.clientY / this.canvas.clientHeight) * 2 + 1
-    );
-
-    this.raycaster.setFromCamera(mouse, this.camera);
-    const intersects = this.raycaster.intersectObjects(
-      this.scene.children,
-      true
-    );
-
-    for (const intersect of intersects) {
-      const wall = intersect.object;
-      if (wall.name.includes("Wall")) {
-        // Create new door instance
-        const door = this.doorModel.clone();
-        // Position door at intersection point but keep y at 0
-        const position = new THREE.Vector3(
-          Math.round(intersect.point.x / 5) * 5,
-          0, // Set y to ground level
-          Math.round(intersect.point.z / 5) * 5
-        );
-        door.position.copy(position);
-
-        // Align door with wall
-        const wallNormal = intersect.face?.normal;
-        if (wallNormal) {
-          door.lookAt(
-            position.x + wallNormal.x,
-            position.y + wallNormal.y,
-            position.z + wallNormal.z
-          );
-        }
-
-        this.scene.add(door);
-        this.placedObjects.push(door);
         break;
       }
     }
