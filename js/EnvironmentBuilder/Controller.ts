@@ -152,31 +152,26 @@ export class Controller {
         );
         event.object.position.copy(newPosition);
 
-        // Check for collisions
-        const isColliding = this.checkObjectCollisions(
-          event.object,
-          newPosition
-        );
+        // // Check for collisions
+        // const isColliding = this.checkObjectCollisions(
+        //   event.object,
+        //   newPosition
+        // );
 
-        if (isColliding !== this.isColliding) {
-          this.isColliding = isColliding;
-          event.object.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-              child.material.emissive.set(isColliding ? 0xff0000 : 0x00ff00);
-            }
-          });
-        }
+        // if (isColliding !== this.isColliding) {
+        //   this.isColliding = isColliding;
+        //   event.object.traverse((child) => {
+        //     if (child instanceof THREE.Mesh) {
+        //       child.material.emissive.set(isColliding ? 0xff0000 : 0x00ff00);
+        //     }
+        //   });
+        // }
       }
     });
 
     this.dragControls.addEventListener("dragend", (event) => {
       if (this.dragControls.enabled) {
         this.controls.enabled = true;
-
-        // If object is still colliding, return it to original position
-        if (this.isColliding) {
-          event.object.position.copy(this.originalPosition);
-        }
 
         this.selectedObject = null;
         event.object.traverse((child) => {

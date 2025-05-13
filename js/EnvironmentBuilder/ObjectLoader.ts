@@ -32,6 +32,9 @@ export class ObjectLoader {
   private roomStartPoint: THREE.Vector2 = new THREE.Vector2();
   private currentRoom: THREE.Group | null = null;
   private raycaster: THREE.Raycaster = new THREE.Raycaster();
+  private modelScale: number = 0.7; // Default scale value
+  private selectedObject: THREE.Object3D | null = null;
+  private objectScaleFolder: GUI | null = null;
 
   private camera: THREE.Camera;
 
@@ -56,6 +59,7 @@ export class ObjectLoader {
     this.setupGUI();
     this.setupDoubleClickHandler();
     this.loadDoorModel();
+    this.setupObjectSelection();
 
     this.controller.setEventHandler(
       (object: THREE.Object3D) => this.removePlacedObject(object),
@@ -72,7 +76,7 @@ export class ObjectLoader {
 
   private transformModel(
     model: THREE.Group<THREE.Object3DEventMap>,
-    scale: number = 0.7
+    scale: number = this.modelScale
   ): THREE.Group<THREE.Object3DEventMap> {
     const box = new THREE.Box3().setFromObject(model);
     var sca = new THREE.Matrix4();
@@ -164,8 +168,8 @@ export class ObjectLoader {
     // Find intersection point
     const intersectionPoint = new THREE.Vector3();
     this.raycaster.ray.intersectPlane(plane, intersectionPoint);
-    intersectionPoint.x = Math.round(intersectionPoint.x / 5) * 5;
-    intersectionPoint.z = Math.round(intersectionPoint.z / 5) * 5;
+    intersectionPoint.x = Math.round(intersectionPoint.x / 2) * 2;
+    intersectionPoint.z = Math.round(intersectionPoint.z / 2) * 2;
 
     return intersectionPoint;
   }
@@ -263,13 +267,13 @@ export class ObjectLoader {
     door: THREE.Group,
     position: THREE.Vector3
   ): void {
-    // Get door dimensions from the model
-    const doorBox = new THREE.Box3().setFromObject(door);
+    const isFrontOrBackWall =
+      wall.name.includes("front") || wall.name.includes("back");
 
     // Create a shape for the wall
     const wallBox = new THREE.Box3().setFromObject(wall);
     const wallSize = wallBox.getSize(new THREE.Vector3());
-    const wallWidth = wallSize.x;
+    const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
     const wallHeight = wallSize.y;
 
     const shape = new THREE.Shape();
@@ -300,13 +304,16 @@ export class ObjectLoader {
     shape.holes.push(hole);
 
     // Create extruded geometry with exact wall thickness
-    const extrudeSettings = {
-      amount: wallThickness,
+    const extrudeSettings: THREE.ExtrudeGeometryOptions = {
+      depth: wallThickness,
       bevelEnabled: false,
     };
 
     const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     extrudeGeometry.translate(0, 0, -wallThickness / 2);
+    if (!isFrontOrBackWall) {
+      extrudeGeometry.rotateY(Math.PI / 2);
+    }
 
     // Update wall geometry
     wall.geometry.dispose();
@@ -334,9 +341,9 @@ export class ObjectLoader {
         const door = this.doorModel.clone();
         // Position door at intersection point but keep y at 0
         const position = new THREE.Vector3(
-          Math.round(intersect.point.x / 5) * 5,
+          Math.round(intersect.point.x / 2) * 2,
           0, // Set y to ground level
-          Math.round(intersect.point.z / 5) * 5
+          Math.round(intersect.point.z / 2) * 2
         );
         door.position.copy(position);
 
@@ -402,11 +409,20 @@ export class ObjectLoader {
       .add({ loadPositions: () => this.loadPositions() }, "loadPositions")
       .name("Load Positions");
 
-    // Add Load Model button
+    // Add Load Model button and scale slider
     const modelFolder = this.gui.addFolder("Models");
     modelFolder
       .add({ loadModel: () => this.openModelPicker() }, "loadModel")
       .name("Load Model");
+
+    // Add scale slider
+    const scaleControl = { scale: this.modelScale };
+    modelFolder
+      .add(scaleControl, "scale", 0.1, 3.0, 0.1)
+      .name("Model Scale")
+      .onChange((value) => {
+        this.modelScale = value;
+      });
 
     // Add Door Placement button
     this.doorButtonElement = document.createElement("button");
@@ -653,8 +669,6 @@ export class ObjectLoader {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".gltf,.glb";
-    // input.setAttribute("webkitdirectory", "");
-    // input.setAttribute("directory", "");
 
     input.onchange = async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
@@ -720,9 +734,9 @@ export class ObjectLoader {
       if (wall.name.includes("Wall")) {
         // Position door at intersection point but keep y at 0
         const position = new THREE.Vector3(
-          Math.round(intersect.point.x / 5) * 5,
+          Math.round(intersect.point.x / 2) * 2,
           0, // Set y to ground level
-          Math.round(intersect.point.z / 5) * 5
+          Math.round(intersect.point.z / 2) * 2
         );
         this.previewDoor.position.copy(position);
 
@@ -818,5 +832,67 @@ export class ObjectLoader {
     this.scene.add(helper);
 
     return { model, light };
+  }
+
+  private setupObjectSelection(): void {
+    this.canvas.addEventListener("click", (event: MouseEvent) => {
+      if (this.isRoomToolActive || this.isDoorPlacementActive) return;
+
+      const mouse = new THREE.Vector2(
+        (event.clientX / this.canvas.clientWidth) * 2 - 1,
+        -(event.clientY / this.canvas.clientHeight) * 2 + 1
+      );
+
+      this.raycaster.setFromCamera(mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(
+        this.scene.children,
+        true
+      );
+
+      // Reset previous selection
+      if (this.selectedObject) {
+        this.selectedObject.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            child.material.emissive.set(0x000000);
+          }
+        });
+        this.selectedObject = null;
+        if (this.objectScaleFolder) {
+          this.objectScaleFolder.destroy();
+          this.objectScaleFolder = null;
+        }
+      }
+
+      // Set new selection
+      if (intersects.length > 0) {
+        const selectedMesh = intersects[0].object;
+        // Find the top-level parent that's a placed object
+        let parent = selectedMesh;
+        while (parent.parent && !this.placedObjects.includes(parent)) {
+          parent = parent.parent;
+        }
+
+        if (this.placedObjects.includes(parent)) {
+          this.selectedObject = parent;
+          parent.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.material.emissive.set(0x00ff00);
+            }
+          });
+
+          // Create scale slider for selected object
+          this.objectScaleFolder = this.gui.addFolder("Selected Object");
+          const scaleControl = { scale: 1.0 };
+          this.objectScaleFolder
+            .add(scaleControl, "scale", 0.1, 3.0, 0.1)
+            .name("Scale")
+            .onChange((value) => {
+              if (this.selectedObject) {
+                this.selectedObject.scale.set(value, value, value);
+              }
+            });
+        }
+      }
+    });
   }
 }
