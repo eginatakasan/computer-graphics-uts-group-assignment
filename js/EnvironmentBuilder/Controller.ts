@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls";
 import { DragControls } from "three/examples/jsm/controls/DragControls";
 import { SceneSetup } from "./SceneSetup";
+import { ObjectLoader } from "./ObjectLoader";
 
 const WALL_NAMES = ["frontWall", "backWall", "leftWall", "rightWall"];
 
@@ -18,6 +19,7 @@ export class Controller {
   private onUndo: () => void;
   public scene: THREE.Scene;
   public renderer: THREE.WebGLRenderer;
+  public onDelete: (object: THREE.Object3D) => void;
 
   constructor(sceneSetup: SceneSetup, placedObjects: THREE.Object3D[]) {
     this.scene = sceneSetup.getScene();
@@ -83,6 +85,26 @@ export class Controller {
           new THREE.Vector2(event.clientX, event.clientY)
         );
         this.isRotating = true;
+      }
+    });
+
+    // Add keydown event listener for DELETE key
+    window.addEventListener("keydown", (event) => {
+      if (event.key === "Delete" && this.selectedObject) {
+        // Remove object from scene
+        this.scene.remove(this.selectedObject);
+
+        // Remove object from drag controls
+        const index = this.dragControls.objects.indexOf(this.selectedObject);
+        if (index !== -1) {
+          this.dragControls.objects.splice(index, 1);
+        }
+
+        // Remove object from placed objects
+        this.onDelete(this.selectedObject);
+
+        // Clear selected object
+        this.selectedObject = null;
       }
     });
 
@@ -241,6 +263,18 @@ export class Controller {
   }
 
   public setOnUndo(onUndo: () => void): void {
+    this.onUndo = onUndo;
+  }
+
+  public setOnDelete(onDelete: (object: THREE.Object3D) => void): void {
+    this.onDelete = onDelete;
+  }
+
+  public setEventHandler(
+    onDelete: (object: THREE.Object3D) => void,
+    onUndo: () => void
+  ): void {
+    this.onDelete = onDelete;
     this.onUndo = onUndo;
   }
 }

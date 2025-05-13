@@ -5,7 +5,11 @@ import { Controller } from "./Controller";
 import { SceneSetup } from "./SceneSetup";
 import { DOOR } from "../../public/models";
 
-const wallThickness = 0.01;
+const roomSize = 10;
+const wallHeight = 3;
+const wallThickness = 0.1;
+const doorWidth = 2;
+const doorHeight = 2.2;
 
 export class ObjectLoader {
   private loader: GLTFLoader;
@@ -53,9 +57,10 @@ export class ObjectLoader {
     this.setupDoubleClickHandler();
     this.loadDoorModel();
 
-    this.controller.setOnUndo(() => {
-      this.undo();
-    });
+    this.controller.setEventHandler(
+      (object: THREE.Object3D) => this.removePlacedObject(object),
+      () => this.undo()
+    );
   }
 
   private undo(): void {
@@ -67,7 +72,7 @@ export class ObjectLoader {
 
   private transformModel(
     model: THREE.Group<THREE.Object3DEventMap>,
-    scale: number = 3
+    scale: number = 0.7
   ): THREE.Group<THREE.Object3DEventMap> {
     const box = new THREE.Box3().setFromObject(model);
     var sca = new THREE.Matrix4();
@@ -88,7 +93,8 @@ export class ObjectLoader {
   private async loadDoorModel(): Promise<void> {
     try {
       const gltf = await this.loader.loadAsync(DOOR);
-      this.doorModel = this.transformModel(gltf.scene, 2);
+      this.doorModel = this.transformModel(gltf.scene, 1);
+      this.doorModel.scale.set(1, 0.8, 1);
     } catch (error) {
       console.error("Error loading door model:", error);
     }
@@ -124,6 +130,15 @@ export class ObjectLoader {
 
   public getPlacedObjects(): THREE.Object3D<THREE.Object3DEventMap>[] {
     return this.placedObjects;
+  }
+
+  public removePlacedObject(
+    object: THREE.Object3D<THREE.Object3DEventMap>
+  ): void {
+    const index = this.placedObjects.indexOf(object);
+    if (index !== -1) {
+      this.placedObjects.splice(index, 1);
+    }
   }
 
   public clearPlacedObjects(): void {
@@ -168,9 +183,9 @@ export class ObjectLoader {
     const endWorld = this.screenToWorld(endPoint.x, endPoint.y);
 
     // Calculate dimensions
-    const width = Math.abs(endWorld.x - startWorld.x);
-    const depth = Math.abs(endWorld.z - startWorld.z);
-    const height = 7.5; // Standard room height
+    const width = endWorld.x - startWorld.x;
+    const depth = endWorld.z - startWorld.z;
+    const height = wallHeight; // Standard room height
 
     // Create floor
     const floorGeometry = new THREE.PlaneGeometry(width, depth);
@@ -603,9 +618,9 @@ export class ObjectLoader {
       if (wall.name.includes("Wall")) {
         // Position door at intersection point but keep y at 0
         const position = new THREE.Vector3(
-          Math.round(intersect.point.x / 10) * 10,
+          Math.round(intersect.point.x / 5) * 5,
           0, // Set y to ground level
-          Math.round(intersect.point.z / 10) * 10
+          Math.round(intersect.point.z / 5) * 5
         );
         this.previewDoor.position.copy(position);
 
@@ -644,9 +659,9 @@ export class ObjectLoader {
         const door = this.doorModel.clone();
         // Position door at intersection point but keep y at 0
         const position = new THREE.Vector3(
-          Math.round(intersect.point.x / 10) * 10,
+          Math.round(intersect.point.x / 5) * 5,
           0, // Set y to ground level
-          Math.round(intersect.point.z / 10) * 10
+          Math.round(intersect.point.z / 5) * 5
         );
         door.position.copy(position);
 
