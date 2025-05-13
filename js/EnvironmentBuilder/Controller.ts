@@ -10,7 +10,7 @@ export class Controller {
   private camera: THREE.PerspectiveCamera;
   private controls: MapControls;
   private dragControls: DragControls;
-  private selectedObject: THREE.Object3D | null = null;
+  public selectedObject: THREE.Object3D | null = null;
   private isRotating: boolean = false;
   private lastMousePosition: THREE.Vector2 = new THREE.Vector2();
   private originalPosition: THREE.Vector3 = new THREE.Vector3();
@@ -90,6 +90,7 @@ export class Controller {
 
     // Add keydown event listener for DELETE key
     window.addEventListener("keydown", (event) => {
+      console.log("keydown", event.key);
       if (event.key === "Delete" && this.selectedObject) {
         // Remove object from scene
         this.scene.remove(this.selectedObject);
@@ -105,6 +106,18 @@ export class Controller {
 
         // Clear selected object
         this.selectedObject = null;
+      }
+
+      // Handle translateY with keys 9 and 0
+      const translateAmount = 0.1;
+      if (event.key === "9") {
+        console.log("move up");
+        // Move up
+        this.selectedObject.position.y += translateAmount;
+      } else if (event.key === "0") {
+        console.log("move down");
+        // Move down
+        this.selectedObject.position.y -= translateAmount;
       }
     });
 
@@ -151,21 +164,6 @@ export class Controller {
           event.object.position.z
         );
         event.object.position.copy(newPosition);
-
-        // // Check for collisions
-        // const isColliding = this.checkObjectCollisions(
-        //   event.object,
-        //   newPosition
-        // );
-
-        // if (isColliding !== this.isColliding) {
-        //   this.isColliding = isColliding;
-        //   event.object.traverse((child) => {
-        //     if (child instanceof THREE.Mesh) {
-        //       child.material.emissive.set(isColliding ? 0xff0000 : 0x00ff00);
-        //     }
-        //   });
-        // }
       }
     });
 

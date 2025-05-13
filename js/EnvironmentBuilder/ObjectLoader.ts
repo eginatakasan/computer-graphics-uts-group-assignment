@@ -862,6 +862,7 @@ export class ObjectLoader {
       );
 
       // Reset previous selection
+      const previousSelectedObject = this.selectedObject?.clone();
       if (this.selectedObject) {
         this.selectedObject.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -869,6 +870,7 @@ export class ObjectLoader {
           }
         });
         this.selectedObject = null;
+        this.controller.selectedObject = null;
         if (this.objectScaleFolder) {
           this.objectScaleFolder.destroy();
           this.objectScaleFolder = null;
@@ -878,6 +880,9 @@ export class ObjectLoader {
       // Set new selection
       if (intersects.length > 0) {
         const selectedMesh = intersects[0].object;
+        if (selectedMesh.id === previousSelectedObject?.id) {
+          return;
+        }
         // Find the top-level parent that's a placed object
         let parent = selectedMesh;
         while (parent.parent && !this.placedObjects.includes(parent)) {
@@ -886,6 +891,7 @@ export class ObjectLoader {
 
         if (this.placedObjects.includes(parent)) {
           this.selectedObject = parent;
+          this.controller.selectedObject = parent;
           parent.traverse((child) => {
             if (child instanceof THREE.Mesh) {
               child.material.emissive.set(0x00ff00);
