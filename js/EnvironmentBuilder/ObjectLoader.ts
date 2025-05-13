@@ -11,7 +11,7 @@ import { Intersection } from "three";
 const roomSize = 10;
 const wallHeight = 3;
 const wallThickness = 0.1;
-const doorWidth = 1.7;
+const doorWidth = 1.2;
 const doorHeight = 2.5;
 
 export class ObjectLoader {
@@ -38,6 +38,8 @@ export class ObjectLoader {
   private modelScale: number = 0.7; // Default scale value
   private selectedObject: THREE.Object3D | null = null;
   private objectScaleFolder: GUI | null = null;
+  private textureRepeatU: number = 1; // Default texture repeat value
+  private textureRepeatV: number = 1; // Default texture repeat value
 
   private camera: THREE.Camera;
 
@@ -100,8 +102,7 @@ export class ObjectLoader {
   private async loadDoorModel(): Promise<void> {
     try {
       const gltf = await this.loader.loadAsync(DOOR);
-      this.doorModel = this.transformModel(gltf.scene, 1);
-      this.doorModel.scale.set(1, 0.8, 1);
+      this.doorModel = this.transformModel(gltf.scene, 0.8);
     } catch (error) {
       console.error("Error loading door model:", error);
     }
@@ -190,15 +191,16 @@ export class ObjectLoader {
     const endWorld = this.screenToWorld(endPoint.x, endPoint.y);
 
     // Calculate dimensions
-    const width = endWorld.x - startWorld.x;
-    const depth = endWorld.z - startWorld.z;
+    const width = endWorld.x - startWorld.x - 0.1;
+    const depth = endWorld.z - startWorld.z - 0.1;
     const height = wallHeight; // Standard room height
 
     // Create floor
     const floorGeometry = new THREE.PlaneGeometry(width, depth);
     const floorMaterial = new THREE.MeshLambertMaterial({
-      color: isPreview ? 0x00ff00 : 0xffffff,
-      opacity: isPreview ? 0.5 : 1,
+      color: 0xffffff,
+      emissive: isPreview ? 0x00ff00 : 0x000000,
+      opacity: 1,
       side: THREE.DoubleSide,
     });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -213,9 +215,9 @@ export class ObjectLoader {
 
     // Create walls
     const wallMaterial = new THREE.MeshStandardMaterial({
-      color: isPreview ? 0x00ff00 : 0xffffff,
-      opacity: isPreview ? 0.5 : 1,
-      side: THREE.DoubleSide,
+      color: 0xffffff,
+      emissive: isPreview ? 0x00ff00 : 0x000000,
+      opacity: 1,
     });
 
     // Front wall
@@ -265,13 +267,13 @@ export class ObjectLoader {
     return room;
   }
 
-  private makeAHole(
-    wall: THREE.Mesh,
-    door: THREE.Group,
-    position: THREE.Vector3
-  ): void {
+  private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
     const isFrontOrBackWall =
       wall.name.includes("front") || wall.name.includes("back");
+
+    // Store the current material properties
+    const currentMaterial = wall.clone().material as THREE.MeshStandardMaterial;
+    const currentTexture = currentMaterial.map;
 
     // Create a shape for the wall
     const wallBox = new THREE.Box3().setFromObject(wall);
@@ -296,13 +298,14 @@ export class ObjectLoader {
     const holeHeight = doorHeight - wallThickness;
 
     // Position hole at ground level (y=0)
+    const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
     const holeY = -wallHeight / 2 + holeHeight / 2; // This centers the hole vertically at ground level
 
-    hole.moveTo(doorPosition.x - holeWidth / 2, holeY + holeHeight / 2);
-    hole.lineTo(doorPosition.x - holeWidth / 2, holeY - holeHeight / 2);
-    hole.lineTo(doorPosition.x + holeWidth / 2, holeY - holeHeight / 2);
-    hole.lineTo(doorPosition.x + holeWidth / 2, holeY + holeHeight / 2);
-    hole.lineTo(doorPosition.x - holeWidth / 2, holeY + holeHeight / 2);
+    hole.moveTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
+    hole.lineTo(holeX - holeWidth / 2, holeY - holeHeight / 2);
+    hole.lineTo(holeX + holeWidth / 2, holeY - holeHeight / 2);
+    hole.lineTo(holeX + holeWidth / 2, holeY + holeHeight / 2);
+    hole.lineTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
 
     shape.holes.push(hole);
 
@@ -315,12 +318,24 @@ export class ObjectLoader {
     const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
     extrudeGeometry.translate(0, 0, -wallThickness / 2);
     if (!isFrontOrBackWall) {
-      extrudeGeometry.rotateY(Math.PI / 2);
+      extrudeGeometry.rotateY(-Math.PI / 2);
     }
+
+    wall.name += "Doorway";
 
     // Update wall geometry
     wall.geometry.dispose();
     wall.geometry = extrudeGeometry;
+
+    // Create new material with preserved texture settings
+    const newMaterial = currentMaterial.clone();
+    if (currentTexture) {
+      newMaterial.map = currentTexture.clone();
+      newMaterial.map.repeat.set(this.textureRepeatU, this.textureRepeatV);
+      newMaterial.map.wrapS = THREE.RepeatWrapping;
+      newMaterial.map.wrapT = THREE.RepeatWrapping;
+    }
+    wall.material = newMaterial;
   }
 
   private handleDoorPlacement = (event: MouseEvent): void => {
@@ -350,32 +365,37 @@ export class ObjectLoader {
       }
     });
 
-    for (const wall of intersectedWalls) {
-      // Create new door instance
-      const door = this.doorModel.clone();
-      // Position door at intersection point but keep y at 0
-      const position = new THREE.Vector3(
-        Math.round(wall.point.x / 2) * 2,
-        0, // Set y to ground level
-        Math.round(wall.point.z / 2) * 2
+    if (intersectedWalls.length === 0) {
+      return;
+    }
+
+    const wall = intersectedWalls[0];
+    // Create new door instance
+    const door = this.doorModel.clone();
+    // Position door at intersection point but keep y at 0
+    const position = new THREE.Vector3(
+      Math.round(wall.point.x / 2) * 2,
+      0, // Set y to ground level
+      Math.round(wall.point.z / 2) * 2
+    );
+    door.position.copy(position);
+
+    // Align door with wall
+    const wallNormal = wall.face?.normal;
+    if (wallNormal) {
+      door.lookAt(
+        position.x + wallNormal.x,
+        position.y + wallNormal.y,
+        position.z + wallNormal.z
       );
-      door.position.copy(position);
+    }
 
-      // Align door with wall
-      const wallNormal = wall.face?.normal;
-      if (wallNormal) {
-        door.lookAt(
-          position.x + wallNormal.x,
-          position.y + wallNormal.y,
-          position.z + wallNormal.z
-        );
-      }
+    this.scene.add(door);
+    this.placedObjects.push(door);
 
+    for (const intersection of intersectedWalls) {
       // Create hole in the wall
-      this.makeAHole(wall.object as THREE.Mesh, door, position);
-
-      this.scene.add(door);
-      this.placedObjects.push(door);
+      this.makeAHole(intersection.object as THREE.Mesh, position);
     }
   };
 
@@ -436,6 +456,22 @@ export class ObjectLoader {
         this.modelScale = value;
       });
 
+    // Add texture repeat slider
+    const textureFolder = this.gui.addFolder("Texture Settings");
+    textureFolder
+      .add({ repeatU: this.textureRepeatU }, "repeatU", 0.25, 5, 0.25)
+      .name("Texture Repeat U")
+      .onChange((value) => {
+        this.textureRepeatU = value;
+      });
+
+    textureFolder
+      .add({ repeatV: this.textureRepeatV }, "repeatV", 0.25, 5, 0.25)
+      .name("Texture Repeat V")
+      .onChange((value) => {
+        this.textureRepeatV = value;
+      });
+
     // Add Door Placement button
     this.doorButtonElement = document.createElement("button");
     this.doorButtonElement.id = "door-tool";
@@ -463,6 +499,7 @@ export class ObjectLoader {
         this.currentRoom = null;
 
         if (this.isRoomToolActive) {
+          this.cleanupDoorPlacement();
           this.mouseDownHandler = (event: MouseEvent) => {
             if (this.isRoomToolActive && event.button === 0) {
               this.isBuildingRoom = true;
@@ -581,7 +618,7 @@ export class ObjectLoader {
           const texture = await textureLoader.loadAsync(url);
           texture.wrapS = THREE.RepeatWrapping;
           texture.wrapT = THREE.RepeatWrapping;
-          texture.repeat.set(4, 2);
+          texture.repeat.set(this.textureRepeatU, this.textureRepeatV);
 
           if (
             mesh.material instanceof THREE.MeshStandardMaterial ||
@@ -652,9 +689,23 @@ export class ObjectLoader {
                 [];
               const objects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
               object.children.forEach((child, index) => {
+                child.traverse((c) => {
+                  if (c instanceof THREE.Mesh) {
+                    c.material.emissive.set(0x000000);
+                  }
+
+                  if (
+                    c.name.includes("Doorway") &&
+                    !c.name.includes("front") &&
+                    !c.name.includes("back")
+                  ) {
+                    c.rotateY(-Math.PI / 2);
+                  }
+                });
                 if (child.name === "placeableObject") {
                   placeableObjects.push(child);
                 }
+
                 objects.push(child);
               });
               console.log("placeableObjects", placeableObjects);
@@ -861,8 +912,6 @@ export class ObjectLoader {
         true
       );
 
-      // Reset previous selection
-      const previousSelectedObject = this.selectedObject?.clone();
       if (this.selectedObject) {
         this.selectedObject.traverse((child) => {
           if (child instanceof THREE.Mesh) {
@@ -880,9 +929,6 @@ export class ObjectLoader {
       // Set new selection
       if (intersects.length > 0) {
         const selectedMesh = intersects[0].object;
-        if (selectedMesh.id === previousSelectedObject?.id) {
-          return;
-        }
         // Find the top-level parent that's a placed object
         let parent = selectedMesh;
         while (parent.parent && !this.placedObjects.includes(parent)) {

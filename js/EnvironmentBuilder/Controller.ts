@@ -90,7 +90,6 @@ export class Controller {
 
     // Add keydown event listener for DELETE key
     window.addEventListener("keydown", (event) => {
-      console.log("keydown", event.key);
       if (event.key === "Delete" && this.selectedObject) {
         // Remove object from scene
         this.scene.remove(this.selectedObject);
@@ -111,11 +110,9 @@ export class Controller {
       // Handle translateY with keys 9 and 0
       const translateAmount = 0.1;
       if (event.key === "9") {
-        console.log("move up");
         // Move up
         this.selectedObject.position.y += translateAmount;
       } else if (event.key === "0") {
-        console.log("move down");
         // Move down
         this.selectedObject.position.y -= translateAmount;
       }
@@ -160,7 +157,7 @@ export class Controller {
 
         const newPosition = new THREE.Vector3(
           event.object.position.x,
-          0,
+          event.object.position.y,
           event.object.position.z
         );
         event.object.position.copy(newPosition);

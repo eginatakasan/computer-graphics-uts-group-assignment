@@ -10,13 +10,17 @@ export class SceneSetup {
   private sceneSize: number = 100;
   public ground: THREE.Mesh;
 
-  constructor(container: HTMLElement) {
-    this.scene = new THREE.Scene();
+  public setup(container: HTMLElement): void {
     this.setupScene();
     this.setupRenderer(container);
     this.setupGrid();
     this.setupLights();
     this.setupGUI();
+  }
+
+  constructor(container: HTMLElement) {
+    this.scene = new THREE.Scene();
+    this.setup(container);
   }
 
   private setupScene(): void {
@@ -50,6 +54,7 @@ export class SceneSetup {
 
   private setupGrid(): void {
     this.gridHelper = new THREE.GridHelper(this.sceneSize, this.sceneSize / 2);
+    this.scene.add(this.gridHelper);
   }
 
   private setupLights(): void {
