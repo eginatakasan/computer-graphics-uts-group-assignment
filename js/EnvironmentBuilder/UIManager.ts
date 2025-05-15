@@ -12,6 +12,7 @@ import { ObjectLoader } from "three";
 export class UIManager {
   private gui: GUI;
   private controller: Controller;
+  private toolsContainer: HTMLDivElement;
   private roomToolElement: HTMLButtonElement;
   private doorButtonElement: HTMLButtonElement;
   private deleteButtonElement: HTMLButtonElement;
@@ -39,21 +40,17 @@ export class UIManager {
     this.stateManager = stateManager;
     this.controller = controller;
     this.canvas = document.querySelector("canvas");
+    this.toolsContainer = document.querySelector("#tools");
     this.roomToolElement = document.querySelector("button#room-tool");
 
     this.setupGUI();
     this.createObjectListUI();
+    this.setupToolButtons();
 
     // Subscribe to state changes to update object list
     this.stateManager.subscribe("placedObjectsChanged", () => {
       this.updateObjectList();
     });
-  }
-
-  public setObjectLoader(objectLoader: ObjectLoader): void {
-    this.objectLoader = objectLoader;
-    this.setupGUI();
-    this.setupToolButtons();
   }
 
   private setupGUI(): void {

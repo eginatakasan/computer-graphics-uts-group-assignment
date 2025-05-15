@@ -52,6 +52,34 @@ function createFloor(width, depth, color) {
   return floor;
 }
 
+function loadPositions(path) {
+  fetch(path)
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(
+          `Failed to load scene: ${response.status} ${response.statusText}`
+        );
+      }
+      return response.json();
+    })
+    .then((json) => {
+      new THREE.ObjectLoader().parse(json, (object) => {
+        scene.add(object);
+      });
+
+      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+      scene.add(new THREE.DirectionalLight(0xffffff, 0.7));
+    })
+    .catch((error) => {
+      console.error("Error loading scene:", error);
+    });
+}
+
+function loadHouse() {
+  loadPositions("/positions/house.json");
+  console.log("House loaded", scene.children);
+}
+
 function setupRooms() {
   const roomSize = 10;
   const wallHeight = 3;
@@ -218,7 +246,9 @@ function init() {
     .name("Min Gap to Wall");
   gui.add(settings, "armProtrusion", 0.0, 1.0, 0.01).name("Arm Protrusion");
 
-  setupRooms(); // Call to create the rooms
+  // setupRooms(); // Call to create the rooms
+
+  loadHouse();
 
   // Load the first-person arms model
   const loader = new GLTFLoader();

@@ -227,6 +227,10 @@ export class ModelLoader {
       exportScene.add(obj.clone());
     });
 
+    this.stateManager.roomObjects.forEach((obj) => {
+      exportScene.add(obj.clone());
+    });
+
     // Convert to JSON
     const json = exportScene.toJSON();
     const jsonString = JSON.stringify(json, null, 2);
@@ -298,6 +302,7 @@ export class ModelLoader {
 
               // Update placedObjects in state manager
               this.stateManager.setPlacedObjects(placeableObjects);
+              this.stateManager.setRoomObjects(roomObjects);
 
               // Update drag controls
               if (this.stateManager.dragControls) {

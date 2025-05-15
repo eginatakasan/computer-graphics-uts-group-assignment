@@ -28,6 +28,7 @@ export class StateManager {
   // Selection state
   public selectedObject: THREE.Object3D | null = null;
   public placedObjects: THREE.Object3D[] = [];
+  public roomObjects: THREE.Object3D[] = [];
 
   // Observers pattern for state changes
   private listeners: Map<string, Function[]> = new Map();
@@ -150,6 +151,11 @@ export class StateManager {
   public setPlacedObjects(objects: THREE.Object3D[]): void {
     this.placedObjects = objects;
     this.notifyListeners("placedObjectsChanged", this.placedObjects);
+  }
+
+  public setRoomObjects(objects: THREE.Object3D[]): void {
+    this.roomObjects = objects;
+    this.notifyListeners("roomObjectsChanged", this.roomObjects);
   }
 
   // Observer pattern methods

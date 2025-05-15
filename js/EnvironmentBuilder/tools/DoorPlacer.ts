@@ -11,22 +11,18 @@ const doorHeight = 2.5;
 const wallThickness = 0.1;
 
 export class DoorPlacer {
-  private scene: THREE.Scene;
   private stateManager: StateManager;
   private raycaster: THREE.Raycaster = new THREE.Raycaster();
   private camera: THREE.Camera;
   private canvas: HTMLCanvasElement;
   private doorModel: THREE.Group | null = null;
   private previewDoor: THREE.Group | null = null;
-  private placedObjects: THREE.Object3D[] = [];
   private loader: GLTFLoader;
 
   constructor(stateManager: StateManager) {
-    this.scene = stateManager.scene;
     this.camera = stateManager.camera;
     this.stateManager = stateManager;
     this.canvas = document.querySelector("canvas");
-    this.placedObjects = stateManager.placedObjects;
     this.loader = new GLTFLoader();
 
     this.loadDoorModel();
@@ -36,6 +32,7 @@ export class DoorPlacer {
     try {
       const gltf = await this.loader.loadAsync(DOOR);
       this.doorModel = this.transformModel(gltf.scene, 0.8);
+      this.doorModel.name = "door";
     } catch (error) {
       console.error("Error loading door model:", error);
     }
@@ -73,12 +70,12 @@ export class DoorPlacer {
         child.material.opacity = 0.5;
       }
     });
-    this.scene.add(this.previewDoor);
+    this.stateManager.scene.add(this.previewDoor);
   }
 
   public cleanupDoorPlacement(): void {
     if (this.previewDoor) {
-      this.scene.remove(this.previewDoor);
+      this.stateManager.scene.remove(this.previewDoor);
       this.previewDoor = null;
     }
   }
@@ -93,7 +90,7 @@ export class DoorPlacer {
 
     this.raycaster.setFromCamera(mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(
-      this.scene.children,
+      this.stateManager.scene.children,
       true
     );
 
@@ -132,7 +129,7 @@ export class DoorPlacer {
 
     this.raycaster.setFromCamera(mouse, this.camera);
     const intersects = this.raycaster.intersectObjects(
-      this.scene.children,
+      this.stateManager.scene.children,
       true
     );
 
@@ -174,86 +171,81 @@ export class DoorPlacer {
       );
     }
 
-    this.scene.add(door);
-    this.placedObjects.push(door);
-
-    for (const intersection of intersectedWalls) {
-      // Create hole in the wall
-      this.makeAHole(intersection.object as THREE.Mesh, position);
-    }
+    this.stateManager.scene.add(door);
+    this.stateManager.addPlacedObject(door);
   };
 
-  private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
-    const isFrontOrBackWall =
-      wall.name.includes("front") || wall.name.includes("back");
+  // private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
+  //   const isFrontOrBackWall =
+  //     wall.name.includes("front") || wall.name.includes("back");
 
-    // Store the current material properties
-    const currentMaterial = wall.clone().material as THREE.MeshStandardMaterial;
-    const currentTexture = currentMaterial.map;
+  //   // Store the current material properties
+  //   const currentMaterial = wall.clone().material as THREE.MeshStandardMaterial;
+  //   const currentTexture = currentMaterial.map;
 
-    // Create a shape for the wall
-    const wallBox = new THREE.Box3().setFromObject(wall);
-    const wallSize = wallBox.getSize(new THREE.Vector3());
-    const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
-    const wallHeight = wallSize.y;
+  //   // Create a shape for the wall
+  //   const wallBox = new THREE.Box3().setFromObject(wall);
+  //   const wallSize = wallBox.getSize(new THREE.Vector3());
+  //   const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
+  //   const wallHeight = wallSize.y;
 
-    const shape = new THREE.Shape();
-    shape.moveTo(-wallWidth / 2, wallHeight / 2);
-    shape.lineTo(-wallWidth / 2, -wallHeight / 2);
-    shape.lineTo(wallWidth / 2, -wallHeight / 2);
-    shape.lineTo(wallWidth / 2, wallHeight / 2);
-    shape.lineTo(-wallWidth / 2, wallHeight / 2);
+  //   const shape = new THREE.Shape();
+  //   shape.moveTo(-wallWidth / 2, wallHeight / 2);
+  //   shape.lineTo(-wallWidth / 2, -wallHeight / 2);
+  //   shape.lineTo(wallWidth / 2, -wallHeight / 2);
+  //   shape.lineTo(wallWidth / 2, wallHeight / 2);
+  //   shape.lineTo(-wallWidth / 2, wallHeight / 2);
 
-    // Convert door position to wall's local space
-    const doorPosition = position.clone();
-    wall.worldToLocal(doorPosition);
+  //   // Convert door position to wall's local space
+  //   const doorPosition = position.clone();
+  //   wall.worldToLocal(doorPosition);
 
-    // Create hole path
-    const hole = new THREE.Path();
-    const holeWidth = doorWidth - wallThickness;
-    const holeHeight = doorHeight - wallThickness;
+  //   // Create hole path
+  //   const hole = new THREE.Path();
+  //   const holeWidth = doorWidth - wallThickness;
+  //   const holeHeight = doorHeight - wallThickness;
 
-    // Position hole at ground level (y=0)
-    const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
-    const holeY = -wallHeight / 2 + holeHeight / 2; // This centers the hole vertically at ground level
+  //   // Position hole at ground level (y=0)
+  //   const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
+  //   const holeY = -wallHeight / 2 + holeHeight / 2; // This centers the hole vertically at ground level
 
-    hole.moveTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
-    hole.lineTo(holeX - holeWidth / 2, holeY - holeHeight / 2);
-    hole.lineTo(holeX + holeWidth / 2, holeY - holeHeight / 2);
-    hole.lineTo(holeX + holeWidth / 2, holeY + holeHeight / 2);
-    hole.lineTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
+  //   hole.moveTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
+  //   hole.lineTo(holeX - holeWidth / 2, holeY - holeHeight / 2);
+  //   hole.lineTo(holeX + holeWidth / 2, holeY - holeHeight / 2);
+  //   hole.lineTo(holeX + holeWidth / 2, holeY + holeHeight / 2);
+  //   hole.lineTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
 
-    shape.holes.push(hole);
+  //   shape.holes.push(hole);
 
-    // Create extruded geometry with exact wall thickness
-    const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-      depth: wallThickness,
-      bevelEnabled: false,
-    };
+  //   // Create extruded geometry with exact wall thickness
+  //   const extrudeSettings: THREE.ExtrudeGeometryOptions = {
+  //     depth: wallThickness,
+  //     bevelEnabled: false,
+  //   };
 
-    const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-    extrudeGeometry.translate(0, 0, -wallThickness / 2);
-    if (!isFrontOrBackWall) {
-      extrudeGeometry.rotateY(-Math.PI / 2);
-    }
+  //   const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+  //   extrudeGeometry.translate(0, 0, -wallThickness / 2);
+  //   if (!isFrontOrBackWall) {
+  //     extrudeGeometry.rotateY(-Math.PI / 2);
+  //   }
 
-    wall.name += "Doorway";
+  //   wall.name += "Doorway";
 
-    // Update wall geometry
-    wall.geometry.dispose();
-    wall.geometry = extrudeGeometry;
+  //   // Update wall geometry
+  //   wall.geometry.dispose();
+  //   wall.geometry = extrudeGeometry;
 
-    // Create new material with preserved texture settings
-    const newMaterial = currentMaterial.clone();
-    if (currentTexture) {
-      newMaterial.map = currentTexture.clone();
-      newMaterial.map.repeat.set(
-        this.stateManager.getTextureRepeatU(),
-        this.stateManager.getTextureRepeatV()
-      );
-      newMaterial.map.wrapS = THREE.RepeatWrapping;
-      newMaterial.map.wrapT = THREE.RepeatWrapping;
-    }
-    wall.material = newMaterial;
-  }
+  //   // Create new material with preserved texture settings
+  //   const newMaterial = currentMaterial.clone();
+  //   if (currentTexture) {
+  //     newMaterial.map = currentTexture.clone();
+  //     newMaterial.map.repeat.set(
+  //       this.stateManager.getTextureRepeatU(),
+  //       this.stateManager.getTextureRepeatV()
+  //     );
+  //     newMaterial.map.wrapS = THREE.RepeatWrapping;
+  //     newMaterial.map.wrapT = THREE.RepeatWrapping;
+  //   }
+  //   wall.material = newMaterial;
+  // }
 }

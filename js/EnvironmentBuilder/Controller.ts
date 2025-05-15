@@ -138,7 +138,7 @@ export class Controller {
 
       // Handle translateY with keys 9 and 0
       if (this.stateManager.selectedObject) {
-        const translateAmount = 0.1;
+        const translateAmount = 0.01;
         if (event.key === "9") {
           // Move up
           this.stateManager.selectedObject.position.y += translateAmount;
@@ -178,11 +178,9 @@ export class Controller {
 
     this.dragControls.addEventListener("drag", (event) => {
       if (this.dragControls.enabled) {
-        event.object.position.y = 0;
-
         const newPosition = new THREE.Vector3(
           event.object.position.x,
-          event.object.position.y,
+          this.originalPosition.y,
           event.object.position.z
         );
         event.object.position.copy(newPosition);
