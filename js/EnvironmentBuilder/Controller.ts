@@ -1,34 +1,43 @@
 import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls";
 import { DragControls } from "three/examples/jsm/controls/DragControls";
+import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
 import { SceneSetup } from "./SceneSetup";
-import { ObjectLoader } from "./ObjectLoader";
+import { UIManager } from "./UIManager";
+import { StateManager } from "./core/StateManager";
 
 const WALL_NAMES = ["frontWall", "backWall", "leftWall", "rightWall"];
 
 export class Controller {
-  private camera: THREE.PerspectiveCamera;
   private controls: MapControls;
+  private sceneSetup: SceneSetup;
   private dragControls: DragControls;
-  public selectedObject: THREE.Object3D | null = null;
+  private stateManager: StateManager;
+
   private isRotating: boolean = false;
   private lastMousePosition: THREE.Vector2 = new THREE.Vector2();
   private originalPosition: THREE.Vector3 = new THREE.Vector3();
   private isColliding: boolean = false;
-  private placedObjects: THREE.Object3D[] = [];
-  private onUndo: () => void;
+  public onUndo: () => void;
   public scene: THREE.Scene;
   public renderer: THREE.WebGLRenderer;
   public onDelete: (object: THREE.Object3D) => void;
 
-  constructor(sceneSetup: SceneSetup, placedObjects: THREE.Object3D[]) {
-    this.scene = sceneSetup.getScene();
-    this.renderer = sceneSetup.getRenderer();
-    this.setupCamera();
-    this.setupControls(this.renderer);
-    this.setupDragControls(this.renderer);
-    this.placedObjects = placedObjects;
+  private uiManager: UIManager;
+
+  constructor(sceneSetup: SceneSetup, stateManager: StateManager) {
+    this.sceneSetup = sceneSetup;
+    this.stateManager = stateManager;
+
+    this.scene = stateManager.scene;
+    this.renderer = stateManager.renderer;
+
+    this.setupControls(stateManager.renderer);
+    this.setupDragControls(stateManager.renderer, stateManager.camera);
     this.setupUndoListener();
+
+    stateManager.dragControls = this.dragControls;
+    stateManager.controls = this.controls;
   }
 
   private setupUndoListener(): void {
@@ -45,19 +54,11 @@ export class Controller {
     }
   }
 
-  private setupCamera(): void {
-    this.camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    this.camera.position.set(5, 5, 5);
-    this.camera.lookAt(0, 0, 0);
-  }
-
   private setupControls(renderer: THREE.WebGLRenderer): void {
-    this.controls = new MapControls(this.camera, renderer.domElement);
+    this.controls = new MapControls(
+      this.stateManager.camera,
+      renderer.domElement
+    );
     this.controls.mouseButtons.LEFT = undefined;
     this.controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
     this.controls.keyPanSpeed = 20;
@@ -76,11 +77,17 @@ export class Controller {
     this.controls.dampingFactor = 0.1;
   }
 
-  private setupDragControls(renderer: THREE.WebGLRenderer): void {
-    this.dragControls = new DragControls([], this.camera, renderer.domElement);
+  private setupDragControls(
+    renderer: THREE.WebGLRenderer,
+    camera: THREE.PerspectiveCamera
+  ): void {
+    this.dragControls = new DragControls([], camera, renderer.domElement);
 
     window.addEventListener("mousedown", (event) => {
-      if (event.button === THREE.MOUSE.RIGHT && this.selectedObject) {
+      if (
+        event.button === THREE.MOUSE.RIGHT &&
+        this.stateManager.selectedObject
+      ) {
         this.lastMousePosition.copy(
           new THREE.Vector2(event.clientX, event.clientY)
         );
@@ -88,33 +95,56 @@ export class Controller {
       }
     });
 
-    // Add keydown event listener for DELETE key
+    // Add keydown event listener for keyboard shortcuts
     window.addEventListener("keydown", (event) => {
-      if (event.key === "Delete" && this.selectedObject) {
+      // Delete key - remove selected object
+      if (event.key === "Delete" && this.stateManager.selectedObject) {
+        let objectToDelete = this.stateManager.selectedObject;
+        console.log("Selected object:", objectToDelete.toJSON());
+        if (
+          objectToDelete.parent &&
+          this.stateManager.placedObjects.includes(objectToDelete.parent)
+        ) {
+          objectToDelete = objectToDelete.parent;
+        }
+        console.log(objectToDelete.toJSON());
         // Remove object from scene
-        this.scene.remove(this.selectedObject);
+        this.scene.remove(objectToDelete);
+        this.sceneSetup.scene.remove(objectToDelete);
 
         // Remove object from drag controls
-        const index = this.dragControls.objects.indexOf(this.selectedObject);
-        if (index !== -1) {
-          this.dragControls.objects.splice(index, 1);
-        }
+        // const index = this.dragControls.objects.indexOf(this.selectedObject);
+        // if (index !== -1) {
+        //   this.dragControls.objects.splice(index, 1);
+        // }
 
         // Remove object from placed objects
-        this.onDelete(this.selectedObject);
+        // this.onDelete(this.selectedObject);
 
         // Clear selected object
-        this.selectedObject = null;
+        this.stateManager.selectedObject = null;
+      }
+
+      // Ctrl+C - copy selected object
+      if (
+        event.ctrlKey &&
+        event.key === "c" &&
+        this.stateManager.selectedObject
+      ) {
+        console.log("Copying object:", this.stateManager.selectedObject.name);
+        this.copySelectedObject();
       }
 
       // Handle translateY with keys 9 and 0
-      const translateAmount = 0.1;
-      if (event.key === "9") {
-        // Move up
-        this.selectedObject.position.y += translateAmount;
-      } else if (event.key === "0") {
-        // Move down
-        this.selectedObject.position.y -= translateAmount;
+      if (this.stateManager.selectedObject) {
+        const translateAmount = 0.1;
+        if (event.key === "9") {
+          // Move up
+          this.stateManager.selectedObject.position.y += translateAmount;
+        } else if (event.key === "0") {
+          // Move down
+          this.stateManager.selectedObject.position.y -= translateAmount;
+        }
       }
     });
 
@@ -128,7 +158,7 @@ export class Controller {
           0,
           THREE.Euler.DEFAULT_ORDER
         );
-        this.selectedObject.rotation.copy(euler);
+        this.stateManager.selectedObject.rotation.copy(euler);
       }
     });
 
@@ -140,7 +170,7 @@ export class Controller {
     this.dragControls.addEventListener("dragstart", (event) => {
       if (this.dragControls.enabled) {
         this.controls.enabled = false;
-        this.selectedObject = event.object;
+        this.stateManager.selectedObject = event.object;
         this.originalPosition.copy(event.object.position);
         this.isColliding = false;
         event.object.traverse((child) => {
@@ -168,7 +198,7 @@ export class Controller {
       if (this.dragControls.enabled) {
         this.controls.enabled = true;
 
-        this.selectedObject = null;
+        this.stateManager.selectedObject = null;
         event.object.traverse((child) => {
           if (child instanceof THREE.Mesh) {
             child.material.emissive.set(0x000000);
@@ -203,7 +233,7 @@ export class Controller {
     if (isCollidingWithWall) return true;
 
     // Check collisions with other objects
-    for (const otherObject of this.placedObjects) {
+    for (const otherObject of this.stateManager.placedObjects) {
       if (otherObject !== object && otherObject.name !== "room") {
         const otherBox = new THREE.Box3().setFromObject(otherObject);
 
@@ -224,7 +254,7 @@ export class Controller {
   }
 
   public getCamera(): THREE.PerspectiveCamera {
-    return this.camera;
+    return this.stateManager.camera;
   }
 
   public getControls(): MapControls {
@@ -235,9 +265,13 @@ export class Controller {
     return this.dragControls;
   }
 
+  public setDragControlsEnabled(enabled: boolean): void {
+    this.dragControls.enabled = enabled;
+  }
+
   public onWindowResize(): void {
-    this.camera.aspect = window.innerWidth / window.innerHeight;
-    this.camera.updateProjectionMatrix();
+    this.stateManager.camera.aspect = window.innerWidth / window.innerHeight;
+    this.stateManager.camera.updateProjectionMatrix();
   }
 
   public update(): void {
@@ -246,10 +280,6 @@ export class Controller {
 
   public setMapControlsEnabled(enabled: boolean): void {
     this.controls.enabled = enabled;
-  }
-
-  public setDragControlsEnabled(enabled: boolean): void {
-    this.dragControls.enabled = enabled;
   }
 
   public setOnUndo(onUndo: () => void): void {
@@ -266,5 +296,33 @@ export class Controller {
   ): void {
     this.onDelete = onDelete;
     this.onUndo = onUndo;
+  }
+
+  public copySelectedObject(): void {
+    if (!this.stateManager.selectedObject) return;
+
+    // Clone the selected object
+    const clone = this.stateManager.selectedObject.clone();
+
+    // Offset the position slightly to make it visible
+    clone.position.x += 1;
+    clone.position.z += 1;
+
+    // Add to scene
+    this.scene.add(clone);
+
+    // Add to drag controls objects
+    this.dragControls.objects.push(clone);
+
+    // Add to placed objects
+    if (this.stateManager.placedObjects) {
+      this.stateManager.placedObjects.push(clone);
+    }
+
+    console.log("Object copied and placed in scene");
+  }
+
+  public getUIManager(): UIManager {
+    return this.uiManager;
   }
 }
