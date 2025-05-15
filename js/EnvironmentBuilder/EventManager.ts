@@ -92,7 +92,7 @@ export class EventManager {
 
         // Find the top-level parent that's a placed object
         let objectToDelete = clickedObject;
-        const placedObjects = this.modelLoader.getPlacedObjects();
+        const placedObjects = this.stateManager.placedObjects;
 
         if (
           objectToDelete.parent &&
@@ -116,12 +116,7 @@ export class EventManager {
   private handleObjectSelection(intersects: THREE.Intersection[]): void {
     // Clear previous selection
     if (this.stateManager.selectedObject) {
-      this.stateManager.selectedObject.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          child.material.emissive.set(0x000000);
-        }
-      });
-      this.stateManager.selectedObject = null;
+      this.stateManager.setSelectedObject(null);
       this.uiManager.removeObjectScaleFolder();
     }
 
@@ -143,20 +138,14 @@ export class EventManager {
 
       // Find the top-level parent that's a placed object
       let parent = selectedMesh;
-      const placedObjects = this.modelLoader.getPlacedObjects();
+      const placedObjects = this.stateManager.placedObjects;
 
       while (parent.parent && !placedObjects.includes(parent)) {
         parent = parent.parent;
       }
 
       if (placedObjects.includes(parent)) {
-        this.stateManager.selectedObject = parent;
-        parent.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.material.emissive.set(0x00ff00);
-          }
-        });
-
+        this.stateManager.setSelectedObject(parent);
         // Create scale slider for selected object
         this.uiManager.createObjectScaleFolder(parent);
       }

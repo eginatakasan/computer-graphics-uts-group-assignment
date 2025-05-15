@@ -128,6 +128,30 @@ export class StateManager {
     return this.selectedObject;
   }
 
+  // PlacedObjects methods
+  public addPlacedObject(object: THREE.Object3D): void {
+    this.placedObjects.push(object);
+    this.notifyListeners("placedObjectsChanged", this.placedObjects);
+  }
+
+  public removePlacedObject(object: THREE.Object3D): void {
+    const index = this.placedObjects.indexOf(object);
+    if (index !== -1) {
+      this.placedObjects.splice(index, 1);
+      this.notifyListeners("placedObjectsChanged", this.placedObjects);
+    }
+  }
+
+  public clearPlacedObjects(): void {
+    this.placedObjects = [];
+    this.notifyListeners("placedObjectsChanged", this.placedObjects);
+  }
+
+  public setPlacedObjects(objects: THREE.Object3D[]): void {
+    this.placedObjects = objects;
+    this.notifyListeners("placedObjectsChanged", this.placedObjects);
+  }
+
   // Observer pattern methods
   public subscribe(event: string, callback: Function): void {
     if (!this.listeners.has(event)) {
@@ -155,5 +179,11 @@ export class StateManager {
   public setDragControls(dragControls: DragControls): void {
     this.dragControls = dragControls;
     this.notifyListeners("dragControls", dragControls);
+  }
+
+  public resetScene(): void {
+    this.scene.clear();
+    this.clearPlacedObjects();
+    this.notifyListeners("resetScene", null);
   }
 }

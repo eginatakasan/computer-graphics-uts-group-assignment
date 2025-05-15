@@ -5,14 +5,12 @@ import { CommandManager } from "../core/CommandManager";
 
 export class ModelLoader {
   private loader: GLTFLoader;
-  private scene: THREE.Scene;
   private stateManager: StateManager;
   private commandManager: CommandManager;
   private placedObjects: THREE.Object3D[] = [];
 
   constructor(stateManager: StateManager, commandManager: CommandManager) {
     this.loader = new GLTFLoader();
-    this.scene = stateManager.scene;
     this.stateManager = stateManager;
     this.commandManager = commandManager;
     this.placedObjects = stateManager.placedObjects;
@@ -51,8 +49,13 @@ export class ModelLoader {
     const group = await this.loadModel(url);
 
     // Add to scene
-    this.scene.add(group);
-    this.placedObjects.push(group);
+    this.stateManager.scene.add(group);
+    // Use StateManager to add to placedObjects
+    this.stateManager.addPlacedObject(group);
+    // Add to drag controls
+    if (this.stateManager.dragControls) {
+      this.stateManager.dragControls.objects.push(group);
+    }
 
     return group;
   }
@@ -84,8 +87,14 @@ export class ModelLoader {
         });
       }
 
-      this.scene.add(group);
-      this.placedObjects.push(group);
+      this.stateManager.scene.add(group);
+      // Use StateManager to add to placedObjects
+      this.stateManager.addPlacedObject(group);
+      // Add to drag controls
+      if (this.stateManager.dragControls) {
+        this.stateManager.dragControls.objects.push(group);
+      }
+
       return group;
     } catch (error) {
       console.error("Error loading model at position:", error);
@@ -131,8 +140,8 @@ export class ModelLoader {
     const helper = new THREE.PointLightHelper(light, 1);
 
     // Add to scene
-    this.scene.add(light);
-    this.scene.add(helper);
+    this.stateManager.scene.add(light);
+    this.stateManager.scene.add(helper);
 
     return { model, light };
   }
@@ -181,38 +190,57 @@ export class ModelLoader {
     return model;
   }
 
-  public getPlacedObjects(): THREE.Object3D[] {
-    return this.placedObjects;
-  }
-
   public removePlacedObject(object: THREE.Object3D): void {
-    const index = this.placedObjects.indexOf(object);
-    if (index !== -1) {
-      this.placedObjects.splice(index, 1);
-      this.scene.remove(object);
+    this.stateManager.scene.remove(object);
+    this.stateManager.removePlacedObject(object);
+
+    // Remove from drag controls if it exists
+    if (this.stateManager.dragControls) {
+      const index = this.stateManager.dragControls.objects.indexOf(object);
+      if (index !== -1) {
+        this.stateManager.dragControls.objects.splice(index, 1);
+      }
     }
   }
 
   public clearPlacedObjects(): void {
-    this.placedObjects.forEach((object) => {
-      this.scene.remove(object);
+    // Remove all objects from scene
+    this.stateManager.placedObjects.forEach((object) => {
+      this.stateManager.scene.remove(object);
     });
-    this.placedObjects = [];
+
+    // Clear drag controls objects
+    if (this.stateManager.dragControls) {
+      this.stateManager.dragControls.objects = [];
+    }
+
+    // Clear placedObjects in state manager
+    this.stateManager.clearPlacedObjects();
   }
 
   public savePositions(): void {
-    const copyScene = this.scene.clone();
-    const json = copyScene.toJSON();
+    // Create a scene to export
+    const exportScene = new THREE.Scene();
 
-    const dataStr = JSON.stringify(json, null, 2);
-    const dataUri =
-      "data:application/json;charset=utf-8," + encodeURIComponent(dataStr);
+    // Add all placed objects to the export scene
+    this.stateManager.placedObjects.forEach((obj) => {
+      exportScene.add(obj.clone());
+    });
 
-    const exportFileDefaultName = "object_positions.json";
-    const linkElement = document.createElement("a");
-    linkElement.setAttribute("href", dataUri);
-    linkElement.setAttribute("download", exportFileDefaultName);
-    linkElement.click();
+    // Convert to JSON
+    const json = exportScene.toJSON();
+    const jsonString = JSON.stringify(json, null, 2);
+
+    // Create a download link
+    const blob = new Blob([jsonString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "scene.json";
+    link.click();
+
+    // Clean up
+    URL.revokeObjectURL(url);
   }
 
   public async loadPositions(): Promise<void> {
@@ -228,12 +256,12 @@ export class ModelLoader {
           try {
             const json = JSON.parse(event.target?.result as string);
 
-            this.scene.clear();
-            this.placedObjects = [];
+            this.stateManager.resetScene();
 
             new THREE.ObjectLoader().parse(json, (object) => {
               const placeableObjects: THREE.Object3D<THREE.Object3DEventMap>[] =
                 [];
+              const roomObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
               object.children.forEach((child, index) => {
                 if (child.name === "ground") {
                   return;
@@ -244,6 +272,12 @@ export class ModelLoader {
                   }
 
                   if (c.name === "ground") {
+                    roomObjects.push(c);
+                    return;
+                  }
+
+                  if (c.name === "room") {
+                    roomObjects.push(c);
                     return;
                   }
 
@@ -261,11 +295,25 @@ export class ModelLoader {
                   }
                 });
               });
-              this.placedObjects = placeableObjects;
-              this.scene.add(object);
+
+              // Update placedObjects in state manager
+              this.stateManager.setPlacedObjects(placeableObjects);
+
+              // Update drag controls
+              if (this.stateManager.dragControls) {
+                this.stateManager.dragControls.objects = [...placeableObjects];
+              }
+
+              // Add loaded objects to scene
+              placeableObjects.forEach((obj) => {
+                this.stateManager.scene.add(obj);
+              });
+              roomObjects.forEach((obj) => {
+                this.stateManager.scene.add(obj);
+              });
             });
           } catch (error) {
-            console.error("Error loading positions:", error);
+            console.error("Error loading scene:", error);
           }
         };
         reader.readAsText(file);

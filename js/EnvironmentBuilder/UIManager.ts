@@ -24,6 +24,8 @@ export class UIManager {
   private stateManager: StateManager;
   private commandManager: CommandManager;
   private objectScaleFolder: GUI | null = null;
+  private objectListContainer: HTMLDivElement | null = null;
+  private objectListFolder: GUI | null = null;
   public isRoomToolActive: boolean = false;
   public isDoorPlacementActive: boolean = false;
   public isDeleteToolActive: boolean = false;
@@ -40,6 +42,12 @@ export class UIManager {
     this.roomToolElement = document.querySelector("button#room-tool");
 
     this.setupGUI();
+    this.createObjectListUI();
+
+    // Subscribe to state changes to update object list
+    this.stateManager.subscribe("placedObjectsChanged", () => {
+      this.updateObjectList();
+    });
   }
 
   public setObjectLoader(objectLoader: ObjectLoader): void {
@@ -107,6 +115,120 @@ export class UIManager {
         this.stateManager.setRoomsSelectable(value);
         console.log("Rooms selectable:", this.isRoomsSelectable);
       });
+  }
+
+  private createObjectListUI(): void {
+    // Create a container for the object list
+    this.objectListContainer = document.createElement("div");
+    this.objectListContainer.id = "object-list-container";
+    this.objectListContainer.style.position = "absolute";
+    this.objectListContainer.style.bottom = "10px";
+    this.objectListContainer.style.left = "10px";
+    this.objectListContainer.style.width = "250px";
+    this.objectListContainer.style.maxHeight = "400px";
+    this.objectListContainer.style.overflowY = "auto";
+    this.objectListContainer.style.backgroundColor = "rgba(255, 255, 255, 0.8)";
+    this.objectListContainer.style.border = "1px solid #ccc";
+    this.objectListContainer.style.borderRadius = "5px";
+    this.objectListContainer.style.padding = "10px";
+    this.objectListContainer.style.zIndex = "1000";
+
+    // Add title
+    const title = document.createElement("h3");
+    title.textContent = "Scene Objects";
+    title.style.margin = "0 0 10px 0";
+    title.style.padding = "0 0 5px 0";
+    title.style.borderBottom = "1px solid #ccc";
+    this.objectListContainer.appendChild(title);
+
+    // Create list container
+    const listElement = document.createElement("ul");
+    listElement.id = "object-list";
+    listElement.style.listStyle = "none";
+    listElement.style.padding = "0";
+    listElement.style.margin = "0";
+    this.objectListContainer.appendChild(listElement);
+
+    // Add to document
+    document.body.appendChild(this.objectListContainer);
+
+    // Initial population of the list
+    this.updateObjectList();
+  }
+
+  public updateObjectList(): void {
+    if (!this.objectListContainer) return;
+
+    const listElement = this.objectListContainer.querySelector("#object-list");
+    if (!listElement) return;
+
+    // Clear existing list
+    listElement.innerHTML = "";
+
+    // Add each object to the list
+    if (
+      this.stateManager.placedObjects &&
+      this.stateManager.placedObjects.length > 0
+    ) {
+      this.stateManager.placedObjects.forEach((object, index) => {
+        const listItem = document.createElement("li");
+        listItem.style.padding = "5px";
+        listItem.style.margin = "2px 0";
+        listItem.style.backgroundColor = "#f0f0f0";
+        listItem.style.borderRadius = "3px";
+        listItem.style.cursor = "pointer";
+
+        // Highlight selected object
+        if (this.stateManager.selectedObject === object) {
+          listItem.style.backgroundColor = "#a0e0a0";
+          listItem.style.fontWeight = "bold";
+        }
+
+        // Set object name or default name
+        const objectName = object.name || `Object ${index + 1}`;
+        listItem.textContent = objectName;
+
+        // Add click event to select the object
+        listItem.addEventListener("click", () => {
+          this.selectObject(object);
+        });
+
+        listElement.appendChild(listItem);
+      });
+    } else {
+      const emptyMessage = document.createElement("li");
+      emptyMessage.textContent = "No objects in scene";
+      emptyMessage.style.fontStyle = "italic";
+      emptyMessage.style.color = "#666";
+      listElement.appendChild(emptyMessage);
+    }
+  }
+
+  private selectObject(object: THREE.Object3D): void {
+    // Deselect previous object if exists
+    if (this.stateManager.selectedObject) {
+      this.stateManager.selectedObject.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material.emissive.set(0x000000);
+        }
+      });
+    }
+
+    // Select new object
+    this.stateManager.setSelectedObject(object);
+
+    // Highlight the selected object
+    object.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.material.emissive.set(0x00ff00);
+      }
+    });
+
+    // Update the object scale folder
+    this.createObjectScaleFolder(object);
+
+    // Update the object list UI to reflect selection
+    this.updateObjectList();
   }
 
   private setupToolButtons(): void {

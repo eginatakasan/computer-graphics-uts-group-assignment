@@ -35,7 +35,7 @@ export class EnvironmentBuilder {
     this.sceneSetup = new SceneSetup(container, this.stateManager);
 
     // Initialize controller
-    this.controller = new Controller(this.sceneSetup, this.stateManager);
+    this.controller = new Controller(this.stateManager);
 
     // Initialize tools
     this.modelLoader = new ModelLoader(this.stateManager, this.commandManager);
@@ -76,6 +76,9 @@ export class EnvironmentBuilder {
     this.uiManager.setStateManager(this.stateManager);
     this.uiManager.setCommandManager(this.commandManager);
 
+    // Connect controller to UI manager
+    this.controller.setUIManager(this.uiManager);
+
     // Connect event manager to tools and UI
     this.eventManager.setModelLoader(this.modelLoader);
     this.eventManager.setRoomBuilder(this.roomBuilder);
@@ -87,6 +90,16 @@ export class EnvironmentBuilder {
   }
 
   private setupEventListeners(): void {
+    // Set up event handlers for controller
+    this.controller.setEventHandler(
+      (object) => {
+        this.modelLoader.removePlacedObject(object);
+      },
+      () => {
+        this.commandManager.undo();
+      }
+    );
+
     // Setup keyboard shortcuts
     window.addEventListener("keydown", (event) => {
       // Ctrl+Z - Undo
@@ -103,7 +116,18 @@ export class EnvironmentBuilder {
       if (event.key === "Delete") {
         const selectedObject = this.stateManager.getSelectedObject();
         if (selectedObject) {
+          // Remove from placedObjects and scene
           this.modelLoader.removePlacedObject(selectedObject);
+
+          // Remove from dragControls.objects
+          if (this.stateManager.dragControls) {
+            const index =
+              this.stateManager.dragControls.objects.indexOf(selectedObject);
+            if (index !== -1) {
+              this.stateManager.dragControls.objects.splice(index, 1);
+            }
+          }
+
           this.stateManager.setSelectedObject(null);
         }
       }
@@ -134,22 +158,23 @@ export class EnvironmentBuilder {
   }
 
   private onWindowResize(): void {
-    this.sceneSetup.onWindowResize();
-    this.stateManager.camera.aspect = window.innerWidth / window.innerHeight;
+    this.stateManager.camera.aspect =
+      this.container.clientWidth / this.container.clientHeight;
     this.stateManager.camera.updateProjectionMatrix();
+    this.stateManager.renderer.setSize(
+      this.container.clientWidth,
+      this.container.clientHeight
+    );
+    this.controller.onWindowResize();
   }
 
   private animate(): void {
     requestAnimationFrame(this.animate.bind(this));
-    if (this.controller) {
-      this.controller.update();
-    }
-    if (this.stateManager.renderer) {
-      this.stateManager.renderer.render(
-        this.stateManager.scene,
-        this.stateManager.camera
-      );
-    }
+    this.controller.update();
+    this.stateManager.renderer.render(
+      this.stateManager.scene,
+      this.stateManager.camera
+    );
   }
 
   public setSceneSize(size: number): void {

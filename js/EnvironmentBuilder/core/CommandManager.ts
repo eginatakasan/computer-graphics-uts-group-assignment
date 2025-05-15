@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { StateManager } from "./StateManager";
 
 // Command interface
 export interface Command {
@@ -10,63 +11,63 @@ export interface Command {
 export class PlaceObjectCommand implements Command {
   private scene: THREE.Scene;
   private object: THREE.Object3D;
-  private placedObjects: THREE.Object3D[];
+  private stateManager: StateManager;
 
   constructor(
     scene: THREE.Scene,
     object: THREE.Object3D,
-    placedObjects: THREE.Object3D[]
+    stateManager: StateManager
   ) {
     this.scene = scene;
     this.object = object;
-    this.placedObjects = placedObjects;
+    this.stateManager = stateManager;
   }
 
   execute(): void {
     this.scene.add(this.object);
-    this.placedObjects.push(this.object);
+    this.stateManager.addPlacedObject(this.object);
   }
 
   undo(): void {
     this.scene.remove(this.object);
-    const index = this.placedObjects.indexOf(this.object);
-    if (index !== -1) {
-      this.placedObjects.splice(index, 1);
-    }
+    this.stateManager.removePlacedObject(this.object);
   }
 }
 
 export class RemoveObjectCommand implements Command {
   private scene: THREE.Scene;
   private object: THREE.Object3D;
-  private placedObjects: THREE.Object3D[];
+  private stateManager: StateManager;
   private index: number;
 
   constructor(
     scene: THREE.Scene,
     object: THREE.Object3D,
-    placedObjects: THREE.Object3D[]
+    stateManager: StateManager
   ) {
     this.scene = scene;
     this.object = object;
-    this.placedObjects = placedObjects;
-    this.index = this.placedObjects.indexOf(object);
+    this.stateManager = stateManager;
+    this.index = this.stateManager.placedObjects.indexOf(object);
   }
 
   execute(): void {
     this.scene.remove(this.object);
-    const index = this.placedObjects.indexOf(this.object);
-    if (index !== -1) {
-      this.placedObjects.splice(index, 1);
-    }
+    this.stateManager.removePlacedObject(this.object);
   }
 
   undo(): void {
     this.scene.add(this.object);
-    if (this.index !== -1 && this.index <= this.placedObjects.length) {
-      this.placedObjects.splice(this.index, 0, this.object);
+    if (
+      this.index !== -1 &&
+      this.index <= this.stateManager.placedObjects.length
+    ) {
+      // Use a temporary array to reinsert at the correct index
+      const updatedObjects = [...this.stateManager.placedObjects];
+      updatedObjects.splice(this.index, 0, this.object);
+      this.stateManager.setPlacedObjects(updatedObjects);
     } else {
-      this.placedObjects.push(this.object);
+      this.stateManager.addPlacedObject(this.object);
     }
   }
 }
@@ -247,38 +248,32 @@ export class CommandManager {
   private undoStack: Command[] = [];
   private redoStack: Command[] = [];
 
-  execute(command: Command): void {
+  constructor() {}
+
+  public execute(command: Command): void {
     command.execute();
     this.undoStack.push(command);
-    this.redoStack = []; // Clear redo stack
-  }
-
-  undo(): void {
-    if (this.undoStack.length > 0) {
-      const command = this.undoStack.pop();
-      command.undo();
-      this.redoStack.push(command);
-    }
-  }
-
-  redo(): void {
-    if (this.redoStack.length > 0) {
-      const command = this.redoStack.pop();
-      command.execute();
-      this.undoStack.push(command);
-    }
-  }
-
-  clear(): void {
-    this.undoStack = [];
     this.redoStack = [];
   }
 
-  canUndo(): boolean {
-    return this.undoStack.length > 0;
+  public undo(): void {
+    if (this.undoStack.length === 0) return;
+
+    const command = this.undoStack.pop();
+    command.undo();
+    this.redoStack.push(command);
   }
 
-  canRedo(): boolean {
-    return this.redoStack.length > 0;
+  public redo(): void {
+    if (this.redoStack.length === 0) return;
+
+    const command = this.redoStack.pop();
+    command.execute();
+    this.undoStack.push(command);
+  }
+
+  public clear(): void {
+    this.undoStack = [];
+    this.redoStack = [];
   }
 }

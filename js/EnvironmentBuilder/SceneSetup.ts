@@ -28,6 +28,10 @@ export class SceneSetup {
     stateManager.camera = this.camera;
     stateManager.renderer = this.renderer;
     stateManager.gridHelper = this.gridHelper;
+
+    this.stateManager.subscribe("resetScene", () => {
+      this.resetScene();
+    });
   }
 
   private setupScene(): void {
@@ -103,5 +107,11 @@ export class SceneSetup {
 
   public onWindowResize(): void {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  public resetScene(): void {
+    this.setupGrid();
+    this.setupLights();
+    this.setupCamera();
   }
 }

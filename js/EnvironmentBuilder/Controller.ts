@@ -1,8 +1,6 @@
 import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls";
 import { DragControls } from "three/examples/jsm/controls/DragControls";
-import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
-import { SceneSetup } from "./SceneSetup";
 import { UIManager } from "./UIManager";
 import { StateManager } from "./core/StateManager";
 
@@ -10,14 +8,12 @@ const WALL_NAMES = ["frontWall", "backWall", "leftWall", "rightWall"];
 
 export class Controller {
   private controls: MapControls;
-  private sceneSetup: SceneSetup;
   private dragControls: DragControls;
   private stateManager: StateManager;
 
   private isRotating: boolean = false;
   private lastMousePosition: THREE.Vector2 = new THREE.Vector2();
   private originalPosition: THREE.Vector3 = new THREE.Vector3();
-  private isColliding: boolean = false;
   public onUndo: () => void;
   public scene: THREE.Scene;
   public renderer: THREE.WebGLRenderer;
@@ -25,8 +21,7 @@ export class Controller {
 
   private uiManager: UIManager;
 
-  constructor(sceneSetup: SceneSetup, stateManager: StateManager) {
-    this.sceneSetup = sceneSetup;
+  constructor(stateManager: StateManager) {
     this.stateManager = stateManager;
 
     this.scene = stateManager.scene;
@@ -38,6 +33,11 @@ export class Controller {
 
     stateManager.dragControls = this.dragControls;
     stateManager.controls = this.controls;
+
+    // Subscribe to state changes for object selection
+    stateManager.subscribe("selectedObject", (object) => {
+      this.handleObjectSelection(object);
+    });
   }
 
   private setupUndoListener(): void {
@@ -110,16 +110,17 @@ export class Controller {
         console.log(objectToDelete.toJSON());
         // Remove object from scene
         this.scene.remove(objectToDelete);
-        this.sceneSetup.scene.remove(objectToDelete);
 
         // Remove object from drag controls
-        // const index = this.dragControls.objects.indexOf(this.selectedObject);
-        // if (index !== -1) {
-        //   this.dragControls.objects.splice(index, 1);
-        // }
+        const index = this.dragControls.objects.indexOf(objectToDelete);
+        if (index !== -1) {
+          this.dragControls.objects.splice(index, 1);
+        }
 
         // Remove object from placed objects
-        // this.onDelete(this.selectedObject);
+        if (this.onDelete) {
+          this.onDelete(objectToDelete);
+        }
 
         // Clear selected object
         this.stateManager.selectedObject = null;
@@ -170,14 +171,8 @@ export class Controller {
     this.dragControls.addEventListener("dragstart", (event) => {
       if (this.dragControls.enabled) {
         this.controls.enabled = false;
-        this.stateManager.selectedObject = event.object;
+        this.stateManager.setSelectedObject(event.object);
         this.originalPosition.copy(event.object.position);
-        this.isColliding = false;
-        event.object.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.material.emissive.set(0x00ff00);
-          }
-        });
       }
     });
 
@@ -197,64 +192,38 @@ export class Controller {
     this.dragControls.addEventListener("dragend", (event) => {
       if (this.dragControls.enabled) {
         this.controls.enabled = true;
-
-        this.stateManager.selectedObject = null;
-        event.object.traverse((child) => {
-          if (child instanceof THREE.Mesh) {
-            child.material.emissive.set(0x000000);
-          }
-        });
       }
     });
   }
 
-  // TODO: This is a temporary function to check collisions with walls
-  private checkCollisions(
-    object: THREE.Group<THREE.Object3DEventMap>,
-    newPosition: THREE.Vector3
-  ): boolean {
-    // Create a temporary box for the object at its new position
-    const tempBox = new THREE.Box3().setFromObject(object);
-    const offset = newPosition.sub(object.position);
-    tempBox.translate(offset);
-
-    // Check collisions with walls
-    let isCollidingWithWall = false;
-    this.scene.traverse((child) => {
-      if (WALL_NAMES.includes(child.name)) {
-        const wallBox = new THREE.Box3().setFromObject(child);
-
-        if (tempBox.intersectsBox(wallBox)) {
-          isCollidingWithWall = true;
+  private handleObjectSelection(object: THREE.Object3D | null): void {
+    // Deselect previous object if exists
+    this.stateManager.placedObjects.forEach((obj) => {
+      obj.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material.emissive.set(0x000000);
         }
-      }
+      });
     });
 
-    if (isCollidingWithWall) return true;
-
-    // Check collisions with other objects
-    for (const otherObject of this.stateManager.placedObjects) {
-      if (otherObject !== object && otherObject.name !== "room") {
-        const otherBox = new THREE.Box3().setFromObject(otherObject);
-
-        if (tempBox.intersectsBox(otherBox)) {
-          return true;
+    // If an object was selected, highlight it
+    if (object) {
+      object.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material.emissive.set(0x00ff00);
         }
+      });
+
+      // Update UI if uiManager is set
+      if (this.uiManager) {
+        this.uiManager.createObjectScaleFolder(object);
+        this.uiManager.updateObjectList();
       }
+    } else if (this.uiManager) {
+      // Remove object scale folder if no object is selected
+      this.uiManager.removeObjectScaleFolder();
+      this.uiManager.updateObjectList();
     }
-    return false;
-  }
-
-  // TODO: This is a temporary function to check collisions with walls
-  public checkObjectCollisions(
-    object: THREE.Object3D,
-    newPosition: THREE.Vector3
-  ): boolean {
-    return this.checkCollisions(object as THREE.Group, newPosition);
-  }
-
-  public getCamera(): THREE.PerspectiveCamera {
-    return this.stateManager.camera;
   }
 
   public getControls(): MapControls {
@@ -315,14 +284,16 @@ export class Controller {
     this.dragControls.objects.push(clone);
 
     // Add to placed objects
-    if (this.stateManager.placedObjects) {
-      this.stateManager.placedObjects.push(clone);
-    }
+    this.stateManager.addPlacedObject(clone);
 
     console.log("Object copied and placed in scene");
   }
 
   public getUIManager(): UIManager {
     return this.uiManager;
+  }
+
+  public setUIManager(uiManager: UIManager): void {
+    this.uiManager = uiManager;
   }
 }
