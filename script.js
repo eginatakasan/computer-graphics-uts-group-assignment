@@ -7,6 +7,10 @@ let scene, camera, renderer, controls;
 let boxModel;
 let gui;
 let collidableObjects = [];
+let interactableObjects = []; // To store objects that can be interacted with
+let raycaster; // For detecting what the camera is looking at
+let highlightedObject = null; // To keep track of the currently highlighted object
+const INTERACTION_DISTANCE = 7; // Max distance to interact/highlight
 
 // Player constants
 const PLAYER_HALF_HEIGHT = 0.9; // Player is 1.8 units tall
@@ -30,6 +34,87 @@ const settings = {
 
 init();
 animate();
+
+// Helper function to create an interactable box
+function createInteractableBox(size, color, position, objectType) {
+  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+  const material = new THREE.MeshLambertMaterial({ color: color });
+  const box = new THREE.Mesh(geometry, material);
+  box.position.copy(position);
+  box.userData.object_type = objectType;
+  box.userData.isInteractable = true;
+  box.userData.originalEmissive = material.emissive.getHex(); // Store original emissive
+  scene.add(box);
+  interactableObjects.push(box);
+  collidableObjects.push(box); // Also make them collidable
+  return box;
+}
+
+// Helper function to create an interactable sphere
+function createInteractableSphere(radius, color, position, objectType) {
+  const geometry = new THREE.SphereGeometry(radius, 32, 16);
+  const material = new THREE.MeshLambertMaterial({ color: color });
+  const sphere = new THREE.Mesh(geometry, material);
+  sphere.position.copy(position);
+  sphere.userData.object_type = objectType;
+  sphere.userData.isInteractable = true;
+  sphere.userData.originalEmissive = material.emissive.getHex();
+  scene.add(sphere);
+  interactableObjects.push(sphere);
+  collidableObjects.push(sphere); // Also make them collidable
+  return sphere;
+}
+
+function setupInteractableObjects() {
+  // Room 1 is centered around Z = -roomSize / 2 = -5
+  // Floor is at Y = 0
+  createInteractableBox(
+    new THREE.Vector3(0.5, 0.5, 0.5), // size
+    0x00ff00, // Green color
+    new THREE.Vector3(2, 0.25, -3), // position (y = height/2)
+    "health_pack" // object_type
+  );
+  createInteractableSphere(
+    0.3, // radius
+    0xff0000, // Red color
+    new THREE.Vector3(-2, 0.3, -4), // position (y = radius)
+    "ammo_box" // object_type
+  );
+
+  // Room 2 is centered around Z = roomSize / 2 = 5
+  createInteractableBox(
+    new THREE.Vector3(0.4, 0.8, 0.4), // size
+    0x0000ff, // Blue color
+    new THREE.Vector3(1, 0.4, 3.5), // position
+    "quest_item_A" // object_type
+  );
+  createInteractableSphere(
+    0.25, // radius
+    0xffff00, // Yellow color
+    new THREE.Vector3(-1.5, 0.25, 4.5), // position
+    "info_panel" // object_type
+  );
+}
+
+function highlightObject(object) {
+  if (object && object.material && object.material.emissive) {
+    object.material.emissive.setHex(0x777777); // A subtle gray highlight
+  }
+}
+
+function unhighlightObject(object) {
+  if (object && object.material && object.material.emissive) {
+    object.material.emissive.setHex(
+      object.userData.originalEmissive || 0x000000
+    );
+  }
+}
+
+function handleObjectInteraction(objectType) {
+  // This function is called when an interactable object is being looked at.
+  // Add specific actions based on objectType here.
+  console.log("Player is looking at:", objectType);
+}
 
 function createWall(width, height, depth, color) {
   const geometry = new THREE.BoxGeometry(width, height, depth);
@@ -59,52 +144,44 @@ function setupRooms() {
   const doorWidth = 2;
   const doorHeight = 2.2;
 
-  // Define multiple wall colors
-  const wallColor1 = 0xffaaaa; // Light red for room 1 back wall
-  const wallColor2 = 0xaaffaa; // Light green for room 1 side walls
-  const sharedWallColor = 0xaaaaff; // Light blue for the shared wall with door
-  const wallColor3 = 0xffffaa; // Light yellow for room 2 side walls
-  const wallColor4 = 0xffaaff; // Light purple for room 2 front wall
+  const wallColor1 = 0xffaaaa;
+  const wallColor2 = 0xaaffaa;
+  const sharedWallColor = 0xaaaaff;
+  const wallColor3 = 0xffffaa;
+  const wallColor4 = 0xffaaff;
 
   const floorColor = 0x888888;
 
-  // Room 1 (centered slightly in -Z)
   const room1ZOffset = -roomSize / 2;
 
-  // Floor 1
   const floor1 = createFloor(roomSize, roomSize, floorColor);
   floor1.position.set(0, 0, room1ZOffset);
 
-  // Walls for Room 1
-  // Back wall (furthest -Z)
   const wall1Back = createWall(
     roomSize + wallThickness,
     wallHeight,
     wallThickness,
-    wallColor1 // Use wallColor1
+    wallColor1
   );
   wall1Back.position.set(0, wallHeight / 2, room1ZOffset - roomSize / 2);
 
-  // Left wall
-  const wall1Left = createWall(wallThickness, wallHeight, roomSize, wallColor2); // Use wallColor2
+  const wall1Left = createWall(wallThickness, wallHeight, roomSize, wallColor2);
   wall1Left.position.set(-roomSize / 2, wallHeight / 2, room1ZOffset);
 
-  // Right wall
   const wall1Right = createWall(
     wallThickness,
     wallHeight,
     roomSize,
     wallColor2
-  ); // Use wallColor2
+  );
   wall1Right.position.set(roomSize / 2, wallHeight / 2, room1ZOffset);
 
-  // Front wall (shared wall, with doorway) - Part 1 (left of door)
   const frontWall1Part1Width = (roomSize - doorWidth) / 2;
   const wall1FrontLeft = createWall(
     frontWall1Part1Width,
     wallHeight,
     wallThickness,
-    sharedWallColor // Use sharedWallColor
+    sharedWallColor
   );
   wall1FrontLeft.position.set(
     -(doorWidth / 2 + frontWall1Part1Width / 2),
@@ -112,12 +189,11 @@ function setupRooms() {
     room1ZOffset + roomSize / 2 - wallThickness / 2
   );
 
-  // Front wall - Part 2 (right of door)
   const wall1FrontRight = createWall(
     frontWall1Part1Width,
     wallHeight,
     wallThickness,
-    sharedWallColor // Use sharedWallColor
+    sharedWallColor
   );
   wall1FrontRight.position.set(
     doorWidth / 2 + frontWall1Part1Width / 2,
@@ -125,13 +201,12 @@ function setupRooms() {
     room1ZOffset + roomSize / 2 - wallThickness / 2
   );
 
-  // Front wall - Part 3 (above door)
   const wall1FrontAboveDoorHeight = wallHeight - doorHeight;
   const wall1FrontAboveDoor = createWall(
     doorWidth,
     wall1FrontAboveDoorHeight,
     wallThickness,
-    sharedWallColor // Use sharedWallColor
+    sharedWallColor
   );
   wall1FrontAboveDoor.position.set(
     0,
@@ -139,46 +214,35 @@ function setupRooms() {
     room1ZOffset + roomSize / 2 - wallThickness / 2
   );
 
-  // Room 2 (centered slightly in +Z)
   const room2ZOffset = roomSize / 2;
 
-  // Floor 2
   const floor2 = createFloor(roomSize, roomSize, floorColor);
   floor2.position.set(0, 0, room2ZOffset);
 
-  // Walls for Room 2
-  // Front wall (furthest +Z)
   const wall2Front = createWall(
     roomSize + wallThickness,
     wallHeight,
     wallThickness,
-    wallColor4 // Use wallColor4
+    wallColor4
   );
   wall2Front.position.set(0, wallHeight / 2, room2ZOffset + roomSize / 2);
 
-  // Left wall
-  const wall2Left = createWall(wallThickness, wallHeight, roomSize, wallColor3); // Use wallColor3
+  const wall2Left = createWall(wallThickness, wallHeight, roomSize, wallColor3);
   wall2Left.position.set(-roomSize / 2, wallHeight / 2, room2ZOffset);
 
-  // Right wall
   const wall2Right = createWall(
     wallThickness,
     wallHeight,
     roomSize,
     wallColor3
-  ); // Use wallColor3
+  );
   wall2Right.position.set(roomSize / 2, wallHeight / 2, room2ZOffset);
-
-  // Back wall for Room 2 is the Front wall of Room 1 (already created with doorway)
-  // No need to create it again, the doorway serves both.
 }
 
 function init() {
-  // Scene
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xcccccc);
 
-  // Camera
   camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
@@ -186,13 +250,11 @@ function init() {
     1000
   );
 
-  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(window.devicePixelRatio);
   document.body.appendChild(renderer.domElement);
 
-  // Lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
   scene.add(ambientLight);
 
@@ -200,15 +262,15 @@ function init() {
   directionalLight.position.set(5, 10, 7.5);
   scene.add(directionalLight);
 
-  // PointerLockControls
   controls = new PointerLockControls(camera, renderer.domElement);
-  scene.add(controls.object); // Add the rig to the scene
+  scene.add(controls.object);
 
-  camera.position.set(1, 1, 1);
-  camera.lookAt(0, 0, 0); // Look at the origin
+  raycaster = new THREE.Raycaster();
 
-  // Add AxesHelper
-  const axesHelper = new THREE.AxesHelper(2); // The number is the size of the axes
+  camera.position.set(1, PLAYER_HALF_HEIGHT + 0.1, 1);
+  camera.lookAt(0, 0, 0);
+
+  const axesHelper = new THREE.AxesHelper(2);
   scene.add(axesHelper);
 
   gui = new GUI();
@@ -218,21 +280,19 @@ function init() {
     .name("Min Gap to Wall");
   gui.add(settings, "armProtrusion", 0.0, 1.0, 0.01).name("Arm Protrusion");
 
-  setupRooms(); // Call to create the rooms
+  setupRooms();
+  setupInteractableObjects();
 
-  // Load the first-person arms model
   const loader = new GLTFLoader();
   loader.load(
-    "fp_arms.glb", // Path to your GLB file
+    "fp_arms.glb",
     function (gltf) {
       boxModel = gltf.scene;
-      camera.add(boxModel); // Add the model directly to the camera
+      camera.add(boxModel);
 
-      // Set initial transformations (relative to camera)
-      boxModel.position.set(0, -0.36, -0.36); // Position: slightly right, down, and in front
-      boxModel.rotation.set(1, Math.PI, 0); // Slight rotation, adjust as needed
+      boxModel.position.set(0, -0.36, -0.36);
+      boxModel.rotation.set(1, Math.PI, 0);
 
-      // Ensure the model and its children are not frustum culled
       boxModel.traverse(function (child) {
         if (child.isMesh) {
           child.frustumCulled = false;
@@ -242,7 +302,6 @@ function init() {
 
       console.log("GLTF model 'fp_arms.glb' loaded and added to camera.");
 
-      // --- Setup GUI controls for boxModel ---
       const handsFolder = gui.addFolder("Hands Model (Relative to Camera)");
 
       const posFolder = handsFolder.addFolder("Position");
@@ -268,13 +327,12 @@ function init() {
 
       handsFolder.open();
     },
-    undefined, // onProgress callback (optional)
+    undefined,
     function (error) {
       console.error("An error happened while loading the GLTF model:", error);
     }
   );
 
-  // Handle window resize
   window.addEventListener("resize", onWindowResize, false);
 
   document.body.addEventListener("click", () => {
@@ -283,7 +341,6 @@ function init() {
     }
   });
 
-  // Keyboard event listeners for movement
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("keyup", onKeyUp);
 }
@@ -339,55 +396,41 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Helper function to check for collision if player moves by displacementVector
-  const checkCollision = (displacementVector) => {
-    const playerCurrentPosition = controls.object.position;
-    const playerTargetPosition = playerCurrentPosition
-      .clone()
-      .add(displacementVector);
-
-    // Define player's AABB at the target position
-    // Assumes cameraBodyRadius is the half-width/depth of the player
-    const playerHalfSize = new THREE.Vector3(
-      settings.cameraBodyRadius,
-      PLAYER_HALF_HEIGHT,
-      settings.cameraBodyRadius
-    );
-    playerWorldAABB.setFromCenterAndSize(
-      playerTargetPosition,
-      playerHalfSize.multiplyScalar(2)
-    );
-
-    for (const wall of collidableObjects) {
-      // Ensure the wall's matrix is up to date for correct AABB calculation
-      wall.updateWorldMatrix(true, false);
-      if (!wall.geometry.boundingBox) {
-        wall.geometry.computeBoundingBox(); // Should have been computed on creation ideally
-      }
-      wallWorldAABB
-        .copy(wall.geometry.boundingBox)
-        .applyMatrix4(wall.matrixWorld);
-
-      if (playerWorldAABB.intersectsBox(wallWorldAABB)) {
-        return true; // Collision detected
-      }
-    }
-    return false; // No collision
-  };
-
-  const delta = clock.getDelta(); // Get time difference between frames
+  const delta = clock.getDelta();
 
   if (controls.isLocked === true) {
+    raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+    raycaster.far = INTERACTION_DISTANCE;
+
+    const intersects = raycaster.intersectObjects(interactableObjects, false);
+
+    let currentTarget = null;
+    if (intersects.length > 0) {
+      if (intersects[0].object.userData.isInteractable) {
+        currentTarget = intersects[0].object;
+      }
+    }
+
+    if (highlightedObject && highlightedObject !== currentTarget) {
+      unhighlightObject(highlightedObject);
+      highlightedObject = null;
+    }
+
+    if (currentTarget && currentTarget !== highlightedObject) {
+      highlightObject(currentTarget);
+      highlightedObject = currentTarget;
+      handleObjectInteraction(currentTarget.userData.object_type);
+    }
+
     const speedDelta = settings.moveSpeed * delta;
 
-    const inputDirection = new THREE.Vector3( // Local direction based on input
+    const inputDirection = new THREE.Vector3(
       Number(moveRight) - Number(moveLeft),
       0,
       Number(moveBackward) - Number(moveForward)
     );
 
     if (inputDirection.lengthSq() > 0) {
-      // Only if there's input
       inputDirection.normalize();
 
       const worldVelocity = inputDirection
@@ -395,20 +438,54 @@ function animate() {
         .applyQuaternion(controls.object.quaternion)
         .multiplyScalar(speedDelta);
 
-      // Attempt to move along X component of worldVelocity
       const moveX = new THREE.Vector3(worldVelocity.x, 0, 0);
       if (worldVelocity.x !== 0 && !checkCollision(moveX)) {
         controls.object.position.add(moveX);
       }
 
-      // Attempt to move along Z component of worldVelocity
-      // (Y component is not handled here as there's no vertical movement input yet)
       const moveZ = new THREE.Vector3(0, 0, worldVelocity.z);
       if (worldVelocity.z !== 0 && !checkCollision(moveZ)) {
         controls.object.position.add(moveZ);
       }
     }
+  } else {
+    if (highlightedObject) {
+      unhighlightObject(highlightedObject);
+      highlightedObject = null;
+    }
   }
 
   renderer.render(scene, camera);
+}
+
+function checkCollision(displacementVector) {
+  const playerCurrentPosition = controls.object.position;
+  const playerTargetPosition = playerCurrentPosition
+    .clone()
+    .add(displacementVector);
+
+  const playerHalfSize = new THREE.Vector3(
+    settings.cameraBodyRadius,
+    PLAYER_HALF_HEIGHT,
+    settings.cameraBodyRadius
+  );
+  playerWorldAABB.setFromCenterAndSize(
+    playerTargetPosition,
+    playerHalfSize.multiplyScalar(2)
+  );
+
+  for (const wall of collidableObjects) {
+    wall.updateWorldMatrix(true, false);
+    if (!wall.geometry.boundingBox) {
+      wall.geometry.computeBoundingBox();
+    }
+    wallWorldAABB
+      .copy(wall.geometry.boundingBox)
+      .applyMatrix4(wall.matrixWorld);
+
+    if (playerWorldAABB.intersectsBox(wallWorldAABB)) {
+      return true;
+    }
+  }
+  return false;
 }
