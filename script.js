@@ -20,6 +20,10 @@ const PLAYER_HALF_HEIGHT = 0.9; // Player is 1.8 units tall
 let playerWorldAABB = new THREE.Box3();
 let wallWorldAABB = new THREE.Box3();
 
+// Glow color constants
+const WHITE_GLOW = 0xcccccc;
+const RED_GLOW = 0xff3333;
+
 // Movement variables
 let moveForward = false;
 let moveBackward = false;
@@ -125,7 +129,18 @@ function setupInteractableObjects() {
 
 function highlightObject(object) {
   if (object && object.material && object.material.emissive) {
-    object.material.emissive.setHex(0x777777); // A subtle gray highlight
+    const isSphere = object.geometry instanceof THREE.SphereGeometry;
+    const isBox = object.geometry instanceof THREE.BoxGeometry;
+
+    const conditionForWhiteGlow =
+      (activeModelPath === "fp_arms.glb" && isSphere) ||
+      (activeModelPath === "second_arms.glb" && isBox);
+
+    if (conditionForWhiteGlow) {
+      object.material.emissive.setHex(WHITE_GLOW);
+    } else {
+      object.material.emissive.setHex(RED_GLOW);
+    }
   }
 }
 
