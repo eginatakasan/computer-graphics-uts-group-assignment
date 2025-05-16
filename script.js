@@ -4,7 +4,8 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 
 let scene, camera, renderer, controls;
-let boxModel;
+let currentHandsModel; // Renamed from boxModel
+let handsGuiFolder; // To manage the GUI folder for hands
 let gui;
 let collidableObjects = [];
 let interactableObjects = []; // To store objects that can be interacted with
@@ -30,6 +31,32 @@ const settings = {
   moveSpeed: 5.0, // Units per second
   cameraBodyRadius: 0.7, // Half-width/depth of player's AABB. Name "Min Gap to Wall" in GUI is a bit misleading now.
   armProtrusion: 0.35, // How far arms stick out. NOTE: Not used in current AABB collision logic.
+};
+
+// Store the path of the currently active model
+let activeModelPath = "";
+let previousActiveModelPath = ""; // To revert on load failure
+
+// Button style constants
+const ACTIVE_BUTTON_STYLE_ARMS1 = {
+  backgroundColor: "#2e7d32",
+  fontWeight: "bold",
+  border: "2px solid white",
+};
+const INACTIVE_BUTTON_STYLE_ARMS1 = {
+  backgroundColor: "#4caf50",
+  fontWeight: "normal",
+  border: "none",
+};
+const ACTIVE_BUTTON_STYLE_ARMS2 = {
+  backgroundColor: "#006080",
+  fontWeight: "bold",
+  border: "2px solid white",
+};
+const INACTIVE_BUTTON_STYLE_ARMS2 = {
+  backgroundColor: "#008cba",
+  fontWeight: "normal",
+  border: "none",
 };
 
 init();
@@ -239,6 +266,117 @@ function setupRooms() {
   wall2Right.position.set(roomSize / 2, wallHeight / 2, room2ZOffset);
 }
 
+function updateArmSelectionUI() {
+  const btnArms1 = document.getElementById("showFirstArms");
+  const btnArms2 = document.getElementById("showSecondArms");
+
+  if (!btnArms1 || !btnArms2) {
+    console.warn("Arm selection buttons not found in DOM for UI update.");
+    return;
+  }
+
+  // Apply inactive styles by default
+  Object.assign(btnArms1.style, INACTIVE_BUTTON_STYLE_ARMS1);
+  Object.assign(btnArms2.style, INACTIVE_BUTTON_STYLE_ARMS2);
+
+  if (activeModelPath === "fp_arms.glb") {
+    Object.assign(btnArms1.style, ACTIVE_BUTTON_STYLE_ARMS1);
+  } else if (activeModelPath === "second_arms.glb") {
+    Object.assign(btnArms2.style, ACTIVE_BUTTON_STYLE_ARMS2);
+  }
+}
+
+function loadHandsModel(modelPath) {
+  // If the requested model is already active and loaded, do nothing further.
+  if (activeModelPath === modelPath && currentHandsModel) {
+    updateArmSelectionUI(); // Ensure UI is consistent
+    return;
+  }
+
+  previousActiveModelPath = activeModelPath; // Store current before attempting to load new
+  activeModelPath = modelPath; // Tentatively set new active path
+
+  // Remove existing model and its GUI folder if they exist
+  if (currentHandsModel) {
+    camera.remove(currentHandsModel);
+    currentHandsModel = null;
+  }
+  if (handsGuiFolder) {
+    handsGuiFolder.destroy();
+    handsGuiFolder = null;
+  }
+
+  updateArmSelectionUI(); // Update UI to reflect the *attempt* to load.
+
+  const loader = new GLTFLoader();
+  loader.load(
+    modelPath,
+    function (gltf) {
+      currentHandsModel = gltf.scene;
+      camera.add(currentHandsModel);
+
+      // Default position and rotation, adjust as needed
+      currentHandsModel.position.set(0, -0.36, -0.36);
+      currentHandsModel.rotation.set(1, Math.PI, 0); // Example rotation
+
+      if (modelPath === "second_arms.glb") {
+        currentHandsModel.scale.set(0.01, 0.01, 0.01); // Adjust scale for second model
+      }
+
+      currentHandsModel.traverse(function (child) {
+        if (child.isMesh) {
+          child.frustumCulled = false;
+        }
+      });
+      currentHandsModel.frustumCulled = false;
+
+      console.log(`GLTF model '${modelPath}' loaded and added to camera.`);
+
+      // Create GUI for the new model
+      const modelNameForGui = modelPath.split("/").pop(); // e.g., "fp_arms.glb"
+      handsGuiFolder = gui.addFolder(`Hands (${modelNameForGui})`);
+
+      const posFolder = handsGuiFolder.addFolder("Position");
+      posFolder.add(currentHandsModel.position, "x", -2, 2, 0.01).name("X");
+      posFolder.add(currentHandsModel.position, "y", -2, 2, 0.01).name("Y");
+      posFolder
+        .add(currentHandsModel.position, "z", -2, 2, 0.01)
+        .name("Z (front)");
+
+      const rotFolder = handsGuiFolder.addFolder("Rotation");
+      rotFolder
+        .add(currentHandsModel.rotation, "x", -Math.PI, Math.PI, 0.01)
+        .name("X (rad)");
+      rotFolder
+        .add(currentHandsModel.rotation, "y", -Math.PI, Math.PI, 0.01)
+        .name("Y (rad)");
+      rotFolder
+        .add(currentHandsModel.rotation, "z", -Math.PI, Math.PI, 0.01)
+        .name("Z (rad)");
+
+      const scaleFolder = handsGuiFolder.addFolder("Scale");
+      scaleFolder.add(currentHandsModel.scale, "x", 0.01, 2, 0.01).name("X");
+      scaleFolder.add(currentHandsModel.scale, "y", 0.01, 2, 0.01).name("Y");
+      scaleFolder.add(currentHandsModel.scale, "z", 0.01, 2, 0.01).name("Z");
+
+      handsGuiFolder.open();
+    },
+    undefined,
+    function (error) {
+      console.error(
+        `An error happened while loading GLTF model '${modelPath}':`,
+        error
+      );
+      // Revert to previous model path and update UI
+      activeModelPath = previousActiveModelPath;
+      console.log(
+        `Reverted active model path to: ${activeModelPath || "none"}`
+      );
+      updateArmSelectionUI(); // Reflect that the attempted model is not active
+    }
+  );
+}
+
 function init() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xcccccc);
@@ -283,55 +421,20 @@ function init() {
   setupRooms();
   setupInteractableObjects();
 
-  const loader = new GLTFLoader();
-  loader.load(
-    "fp_arms.glb",
-    function (gltf) {
-      boxModel = gltf.scene;
-      camera.add(boxModel);
+  // Load initial hands model
+  loadHandsModel("fp_arms.glb");
 
-      boxModel.position.set(0, -0.36, -0.36);
-      boxModel.rotation.set(1, Math.PI, 0);
-
-      boxModel.traverse(function (child) {
-        if (child.isMesh) {
-          child.frustumCulled = false;
-        }
-      });
-      boxModel.frustumCulled = false;
-
-      console.log("GLTF model 'fp_arms.glb' loaded and added to camera.");
-
-      const handsFolder = gui.addFolder("Hands Model (Relative to Camera)");
-
-      const posFolder = handsFolder.addFolder("Position");
-      posFolder.add(boxModel.position, "x", -2, 2, 0.01).name("X");
-      posFolder.add(boxModel.position, "y", -2, 2, 0.01).name("Y");
-      posFolder.add(boxModel.position, "z", -2, 2, 0.01).name("Z (front)");
-
-      const rotFolder = handsFolder.addFolder("Rotation");
-      rotFolder
-        .add(boxModel.rotation, "x", -Math.PI, Math.PI, 0.01)
-        .name("X (rad)");
-      rotFolder
-        .add(boxModel.rotation, "y", -Math.PI, Math.PI, 0.01)
-        .name("Y (rad)");
-      rotFolder
-        .add(boxModel.rotation, "z", -Math.PI, Math.PI, 0.01)
-        .name("Z (rad)");
-
-      const scaleFolder = handsFolder.addFolder("Scale");
-      scaleFolder.add(boxModel.scale, "x", 0.01, 2, 0.01).name("X");
-      scaleFolder.add(boxModel.scale, "y", 0.01, 2, 0.01).name("Y");
-      scaleFolder.add(boxModel.scale, "z", 0.01, 2, 0.01).name("Z");
-
-      handsFolder.open();
-    },
-    undefined,
-    function (error) {
-      console.error("An error happened while loading the GLTF model:", error);
+  // Event listeners for model switching buttons
+  document.getElementById("showFirstArms").addEventListener("click", () => {
+    if (activeModelPath !== "fp_arms.glb") {
+      loadHandsModel("fp_arms.glb");
     }
-  );
+  });
+  document.getElementById("showSecondArms").addEventListener("click", () => {
+    if (activeModelPath !== "second_arms.glb") {
+      loadHandsModel("second_arms.glb"); // Make sure second_arms.glb exists
+    }
+  });
 
   window.addEventListener("resize", onWindowResize, false);
 
@@ -362,6 +465,16 @@ function onKeyDown(event) {
     case "KeyD":
     case "ArrowRight":
       moveRight = true;
+      break;
+    case "Digit1": // Key '1'
+      if (activeModelPath !== "fp_arms.glb") {
+        loadHandsModel("fp_arms.glb");
+      }
+      break;
+    case "Digit2": // Key '2'
+      if (activeModelPath !== "second_arms.glb") {
+        loadHandsModel("second_arms.glb");
+      }
       break;
   }
 }
