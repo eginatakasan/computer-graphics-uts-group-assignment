@@ -188,51 +188,65 @@ export class DoorPlacer {
     const currentMaterial = wall.clone().material as THREE.MeshStandardMaterial;
     const currentTexture = currentMaterial.map;
 
-    // Get or create the wall's shape
-    let shape: THREE.Shape;
+    // Get wall dimensions
+    wall.geometry.computeBoundingBox();
+    const wallBox = new THREE.Box3().copy(wall.geometry.boundingBox);
+    const wallSize = wallBox.getSize(new THREE.Vector3());
+    const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
     const wallHeight = 3;
-
-    if (!wall.userData.shape) {
-      // Create a shape for the wall if it doesn't exist
-      wall.geometry.computeBoundingBox();
-      const wallBox = new THREE.Box3().copy(wall.geometry.boundingBox);
-      const wallSize = wallBox.getSize(new THREE.Vector3());
-      const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
-
-      shape = new THREE.Shape();
-      shape.moveTo(-wallWidth / 2, wallHeight / 2);
-      shape.lineTo(-wallWidth / 2, -wallHeight / 2);
-      shape.lineTo(wallWidth / 2, -wallHeight / 2);
-      shape.lineTo(wallWidth / 2, wallHeight / 2);
-      shape.lineTo(-wallWidth / 2, wallHeight / 2);
-
-      // Store the shape in the wall's userData
-      wall.userData.shape = shape;
-    } else {
-      shape = wall.userData.shape;
-    }
 
     // Convert door position to wall's local space
     const doorPosition = position.clone();
     wall.worldToLocal(doorPosition);
 
-    // Create hole path
-    const hole = new THREE.Path();
+    // Create or get existing doorways
+    let doorways: { x: number; width: number; height: number }[] = [];
+    if (wall.userData.doorways) {
+      doorways = wall.userData.doorways;
+    }
+
+    // Add new doorway
     const holeWidth = 2 - wallThickness;
-    const holeHeight = 2.5 - wallThickness;
-
-    // Position hole at ground level (y=0)
+    const holeHeight = 2.5;
     const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
-    const holeY = -wallHeight / 2 + holeHeight / 2; // This centers the hole vertically at ground level
+    doorways.push({
+      x: holeX,
+      width: holeWidth,
+      height: holeHeight,
+    });
 
-    hole.moveTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
-    hole.lineTo(holeX - holeWidth / 2, holeY - holeHeight / 2);
-    hole.lineTo(holeX + holeWidth / 2, holeY - holeHeight / 2);
-    hole.lineTo(holeX + holeWidth / 2, holeY + holeHeight / 2);
-    hole.lineTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
+    // Store updated doorways
+    wall.userData.doorways = doorways;
 
-    // Add the new hole to the shape
-    shape.holes.push(hole);
+    // Sort doorways by x position to ensure consistent shape creation
+    doorways.sort((a, b) => a.x - b.x);
+
+    // Create shape with all doorways
+    const shape = new THREE.Shape();
+    shape.moveTo(-wallWidth / 2, wallHeight / 2);
+    shape.lineTo(-wallWidth / 2, -wallHeight / 2);
+
+    // Add segments for each doorway
+    let currentX = -wallWidth / 2;
+    for (const doorway of doorways) {
+      // Add segment to doorway
+      shape.lineTo(doorway.x - doorway.width / 2, -wallHeight / 2);
+      shape.lineTo(
+        doorway.x - doorway.width / 2,
+        -wallHeight / 2 + doorway.height
+      );
+      shape.lineTo(
+        doorway.x + doorway.width / 2,
+        -wallHeight / 2 + doorway.height
+      );
+      shape.lineTo(doorway.x + doorway.width / 2, -wallHeight / 2);
+      currentX = doorway.x + doorway.width / 2;
+    }
+
+    // Complete the shape
+    shape.lineTo(wallWidth / 2, -wallHeight / 2);
+    shape.lineTo(wallWidth / 2, wallHeight / 2);
+    shape.lineTo(-wallWidth / 2, wallHeight / 2);
 
     // Create extruded geometry with exact wall thickness
     const extrudeSettings: THREE.ExtrudeGeometryOptions = {
