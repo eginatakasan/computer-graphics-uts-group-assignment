@@ -1,12 +1,14 @@
 import * as THREE from "three";
 import { MapControls } from "three/examples/jsm/controls/MapControls";
 import { GUI } from "three/examples/jsm/libs/lil-gui.module.min.js";
+import { StateManager } from "./core/StateManager";
 
 export class SceneSetup {
-  private scene: THREE.Scene;
+  public scene: THREE.Scene;
+  public stateManager: StateManager;
+  private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
   private gridHelper: THREE.GridHelper;
-  private gui: GUI;
   private sceneSize: number = 100;
   public ground: THREE.Mesh;
 
@@ -15,12 +17,21 @@ export class SceneSetup {
     this.setupRenderer(container);
     this.setupGrid();
     this.setupLights();
-    this.setupGUI();
+    this.setupCamera();
   }
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, stateManager: StateManager) {
     this.scene = new THREE.Scene();
     this.setup(container);
+    this.stateManager = stateManager;
+    stateManager.scene = this.scene;
+    stateManager.camera = this.camera;
+    stateManager.renderer = this.renderer;
+    stateManager.gridHelper = this.gridHelper;
+
+    this.stateManager.subscribe("resetScene", () => {
+      this.resetScene();
+    });
   }
 
   private setupScene(): void {
@@ -35,13 +46,25 @@ export class SceneSetup {
       map: grassTexture,
       side: THREE.DoubleSide,
     });
-    this.ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(this.sceneSize * 2, this.sceneSize * 2),
-      material
+    // this.ground = new THREE.Mesh(
+    //   new THREE.PlaneGeometry(this.sceneSize * 2, this.sceneSize * 2),
+    //   material
+    // );
+    // this.ground.name = "ground";
+    // this.ground.rotation.x = -Math.PI / 2;
+    // this.ground.position.y = -0.5;
+    // this.scene.add(this.ground);
+  }
+
+  private setupCamera(): void {
+    this.camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
     );
-    this.ground.rotation.x = -Math.PI / 2;
-    this.ground.position.y = -0.5;
-    this.scene.add(this.ground);
+    this.camera.position.set(5, 5, 5);
+    this.camera.lookAt(0, 0, 0);
   }
 
   private setupRenderer(container: HTMLElement): void {
@@ -67,20 +90,12 @@ export class SceneSetup {
     this.scene.add(directionalLight);
   }
 
-  private setupGUI(): void {
-    this.gui = new GUI();
-  }
-
   public getScene(): THREE.Scene {
     return this.scene;
   }
 
   public getRenderer(): THREE.WebGLRenderer {
     return this.renderer;
-  }
-
-  public getGUI(): GUI {
-    return this.gui;
   }
 
   public setSceneSize(size: number): void {
@@ -92,5 +107,11 @@ export class SceneSetup {
 
   public onWindowResize(): void {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+  }
+
+  public resetScene(): void {
+    this.setupGrid();
+    this.setupLights();
+    this.setupCamera();
   }
 }
