@@ -285,12 +285,7 @@ export class ModelLoader {
                     return;
                   }
 
-<<<<<<< Updated upstream
-
-                  if (c.name === "placeableObject") {
-=======
                   if (c.name.includes("[placeableObject]")) {
->>>>>>> Stashed changes
                     placeableObjects.push(c);
                   }
 
