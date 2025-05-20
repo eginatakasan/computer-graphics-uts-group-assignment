@@ -3,7 +3,7 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { enableCoordinatePicking } from "./cordinate-picker.js";
-import { generateRoomMesses, createDustBunny } from "./generate-mess.js";
+import { generateRoomFloorMesses, generateRoomWallMesses, generateRoomObjectMesses } from "./generate-mess.js";
 
 let scene, camera, renderer, controls, mixer;
 const animationActions = {};
@@ -170,6 +170,40 @@ function handleObjectInteraction(objectType) {
   console.log("Player is looking at:", objectType);
 }
 
+function handleClothesInteraction(target) {
+  if (target.userData.object_type === 'clothes') {
+    const gltfLoader = new GLTFLoader();
+    const swapPath = target.userData.modelSwap;
+    const pos = target.userData.position || target.position;
+
+    scene.remove(target);
+
+    if (swapPath) {
+      gltfLoader.load(swapPath, (gltf) => {
+        const pile = gltf.scene;
+        pile.position.copy(pos);
+        pile.scale.setScalar(0.5);
+        pile.rotation.y = Math.random() * Math.PI * 2;
+
+        // ✅ Add necessary metadata to pile
+        pile.traverse((child) => {
+          if (child.isMesh) {
+            child.userData.isMess = true;
+            child.userData.type = 'objectMess';
+            child.userData.subtype = 'clothes';
+            child.userData.isInteractable = false; // or true if needed
+            child.userData.object_type = 'clothesPile';
+          }
+        });
+
+        scene.add(pile);
+      });
+    }
+
+    console.log("👕 Clothes mess cleaned and replaced with pile.");
+  }
+}
+
 function createWall(width, height, depth, color) {
   const geometry = new THREE.BoxGeometry(width, height, depth);
   const material = new THREE.MeshLambertMaterial({ color: color });
@@ -250,10 +284,10 @@ function loadHouse() {
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
-  generateRoomMesses(scene, "single-bedroom", 4);
-  const pos = new THREE.Vector3(3.2, 0.82, 0.27);
-  const bunny = createDustBunny(pos);
-  scene.add(bunny);
+  generateRoomFloorMesses(scene, "single-bedroom", 4, 'mess-positions.json', interactableObjects);
+  generateRoomWallMesses(scene, "single-bedroom", 1, 'mess-positions.json', interactableObjects);
+  generateRoomObjectMesses(scene, "single-bedroom", 1, 'mess-positions.json', interactableObjects);
+  console.log(interactableObjects);
 }
 
 function setupRooms() {
@@ -800,6 +834,7 @@ function animate() {
         progressBarFill.style.width = progress * 100 + "%";
 
         if (progress >= 1) {
+          handleClothesInteraction(currentTarget);
           console.log(
             "Interaction complete with:",
             interactionTarget.userData.object_type
