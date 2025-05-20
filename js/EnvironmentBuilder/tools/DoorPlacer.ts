@@ -6,6 +6,7 @@ import { Object3D } from "three";
 import { Object3DEventMap } from "three";
 import { Intersection } from "three";
 
+
 const doorWidth = 2;
 const doorHeight = 2.5;
 const wallThickness = 0.1;
@@ -152,6 +153,7 @@ export class DoorPlacer {
 
     const wall = intersectedWalls[0];
     const wall1 = intersectedWalls[1];
+
     // Create new door instance
     const door = this.doorModel.clone();
     // Position door at intersection point but keep y at 0
@@ -172,13 +174,16 @@ export class DoorPlacer {
       );
     }
 
+
     this.makeAHole(wall.object as THREE.Mesh, position);
     if (wall1) {
       this.makeAHole(wall1.object as THREE.Mesh, position);
     }
+
     this.stateManager.scene.add(door);
     this.stateManager.addPlacedObject(door);
   };
+
 
   private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
     const isFrontOrBackWall =

@@ -2,6 +2,8 @@ import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
+import { enableCoordinatePicking } from './cordinate-picker.js';
+import { generateRoomMesses, createDustBunny } from './generate-mess.js';
 
 let scene, camera, renderer, controls;
 let currentHandsModel; // Renamed from boxModel
@@ -233,6 +235,13 @@ function loadPositions(path) {
 
 function loadHouse() {
   loadPositions("/positions/houseWithHoles.json");
+  console.log("House loaded", scene.children);
+
+  //calling generate mess function here
+  generateRoomMesses(scene, 'single-bedroom', 4);
+  const pos = new THREE.Vector3(3.20, 0.82, 0.27);
+  const bunny = createDustBunny(pos);
+  scene.add(bunny);
 }
 
 function setupRooms() {
@@ -493,6 +502,7 @@ function init() {
   loadHouse();
   setupInteractableObjects();
 
+
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
 
@@ -518,6 +528,20 @@ function init() {
 
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("keyup", onKeyUp);
+
+
+  let pickingMode = { value: false }; // Shared reactive reference
+
+  // Call coordinate picker with mode reference
+  enableCoordinatePicking(scene, camera, controls, { modeRef: pickingMode });
+
+  // Toggle on 'P' key press
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "KeyP") {
+      pickingMode.value = !pickingMode.value;
+      console.log(`🖱️ Coordinate Picker Mode: ${pickingMode.value ? "ON" : "OFF"}`);
+    }
+  });
 }
 
 function onKeyDown(event) {

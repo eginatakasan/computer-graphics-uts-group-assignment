@@ -285,6 +285,7 @@ export class ModelLoader {
                     return;
                   }
 
+
                   if (c.name === "placeableObject") {
                     placeableObjects.push(c);
                   }
@@ -298,11 +299,14 @@ export class ModelLoader {
                     console.log("c.name before", c.name);
                     c.name = c.name.replace("Doorway", "");
                     console.log("c.name after", c.name);
+                  } else if (c.name === "placeableObject") {
+                    placeableObjects.push(c);
                   }
                 });
               });
 
               // Update placedObjects in state manager
+
               roomObjects.forEach((obj) => {
                 obj.traverse((child) => {
                   if (child.name.includes("Wall")) {
@@ -321,6 +325,7 @@ export class ModelLoader {
                   }
                 });
               });
+
               this.stateManager.setPlacedObjects(placeableObjects);
               this.stateManager.setRoomObjects(roomObjects);
 
