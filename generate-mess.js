@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ----- UTILITY FUNCTIONS -----
 
@@ -28,32 +29,72 @@ function createPaperBallMesh(position) {
     return mesh;
 }
 
+const modelPath = '/models/paper_ball1.glb';
+const scale = 0.3;
+
+const gltfLoader = new GLTFLoader();
+
+/**
+ * Loads and places a random paper ball model at the given position.
+ */
+export function loadPaperBall(scene, position) {
+    gltfLoader.load(modelPath, (gltf) => {
+        const paper = gltf.scene;
+
+        paper.position.set(position.x, position.y + 0.15, position.z);
+        paper.rotation.y = Math.random() * Math.PI * 2;
+        paper.scale.setScalar(scale);
+
+        paper.userData.isMess = true;
+        paper.userData.type = 'paperBall';
+
+        scene.add(paper);
+    }, undefined, (error) => {
+        console.error("❌ Failed to load paper ball model:", error);
+    });
+}
+
 // Organic stain mesh
-function createStainMesh(position, color = 0x5c3317, radius = 0.3) {
+export function createStainMesh(center, rotationY = 0, options = {}) {
+    const {
+        radius = 0.4,
+        points = 16,
+        noiseFactor = 0.4,
+        color = 0x5c3317
+    } = options;
+
     const shape = new THREE.Shape();
-    const points = 10;
     const angleStep = (Math.PI * 2) / points;
-    for (let i = 0; i < points; i++) {
+
+    // Use polar coordinates with radial jitter
+    for (let i = 0; i <= points; i++) {
         const angle = i * angleStep;
-        const r = radius * (0.75 + Math.random() * 0.4);
+        const r = radius * (1 - noiseFactor / 2 + Math.random() * noiseFactor);
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r;
+
         if (i === 0) shape.moveTo(x, y);
         else shape.lineTo(x, y);
     }
-    shape.closePath();
 
     const geometry = new THREE.ShapeGeometry(shape);
     const material = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
         opacity: 0.6,
-        side: THREE.DoubleSide
+        side: THREE.DoubleSide,
+        depthWrite: false
     });
 
     const stain = new THREE.Mesh(geometry, material);
     stain.rotation.x = -Math.PI / 2;
-    stain.position.set(position.x, 0.02, position.z);
+    stain.rotation.y = rotationY;
+    stain.position.copy(center);
+    stain.position.y += 0.01;
+
+    stain.userData.isMess = true;
+    stain.userData.type = "stain";
+
     return stain;
 }
 
@@ -97,6 +138,54 @@ function createWallStainMesh(center, rotationY = 0, color = 0x5c3317, radius = 0
     return stain;
 }
 
+//dust bunnies?
+export function createDustBunny(position) {
+    const group = new THREE.Group();
+    const strandCount = 40;
+    const colors = [0x2e2e2e, 0x3a3a3a, 0x4b4b4b];
+
+    function randomSpherePoint(radius = 0.2) {
+        let v;
+        do {
+            v = new THREE.Vector3(
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1,
+                Math.random() * 2 - 1
+            );
+        } while (v.lengthSq() > 1);
+        return v.multiplyScalar(radius);
+    }
+
+    for (let i = 0; i < strandCount; i++) {
+        const controlPoints = Array.from({ length: 8 }).map(() => randomSpherePoint(0.2));
+        const curve = new THREE.CatmullRomCurve3(controlPoints);
+        curve.curveType = 'catmullrom'; // default but explicit
+        curve.tension = 0.5; // smooths the interpolation
+
+
+        const geometry = new THREE.TubeGeometry(curve, 50, 0.002, 4, false);
+        const material = new THREE.MeshStandardMaterial({
+            color: colors[Math.floor(Math.random() * colors.length)],
+            roughness: 1,
+            metalness: 0
+        });
+
+        // const mesh = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(geometry, HairShaderMaterial.clone());
+        group.add(mesh);
+    }
+
+    group.position.set(
+        position.x,
+        position.y + 0.01,
+        position.z
+    );
+    group.scale.setScalar(0.6);
+
+    return group;
+}
+
+
 // ------ Main export -------
 
 /**
@@ -126,7 +215,7 @@ export function generateRoomMesses(scene, roomId = 'room1', count = 3, jsonPath 
                 const type = Math.random() < 0.5 ? 'stain' : 'paperBall'; // 50/50 chance
 
                 if (type === 'paperBall') {
-                    scene.add(createPaperBallMesh(pos));
+                    loadPaperBall(scene, pos);
                 } else {
                     scene.add(createStainMesh(pos));
                 }
@@ -200,3 +289,32 @@ export function generateHardcodedWallStains(scene) {
 
     console.log(`🧱 Hardcoded: 8 wall stains created`);
 }
+
+// ----- SHADERS ------
+
+const HairShaderMaterial = new THREE.ShaderMaterial({
+    vertexShader: `
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+  
+      void main() {
+        vNormal = normal;
+        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vWorldPosition = worldPosition.xyz;
+  
+        gl_Position = projectionMatrix * viewMatrix * worldPosition;
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vNormal;
+      varying vec3 vWorldPosition;
+  
+      void main() {
+        float alpha = smoothstep(0.0, 0.5, 1.0 - length(vNormal));
+        vec3 color = vec3(0.2, 0.2, 0.2);
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false
+});

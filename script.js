@@ -3,7 +3,7 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { enableCoordinatePicking } from './cordinate-picker.js';
-import { generateRoomMesses } from './generate-mess.js';
+import { generateRoomMesses, createDustBunny } from './generate-mess.js';
 
 let scene, camera, renderer, controls;
 let boxModel;
@@ -83,6 +83,9 @@ function loadHouse() {
 
   //calling generate mess function here
   generateRoomMesses(scene, 'single-bedroom', 4);
+  const pos = new THREE.Vector3(3.20, 0.82, 0.27);
+  const bunny = createDustBunny(pos);
+  scene.add(bunny);
 }
 
 function setupRooms() {
