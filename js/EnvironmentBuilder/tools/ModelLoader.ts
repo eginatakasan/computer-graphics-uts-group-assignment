@@ -285,6 +285,11 @@ export class ModelLoader {
                     return;
                   }
 
+                  if (c.name.includes("[Door]")) {
+                    roomObjects.push(c);
+                    return;
+                  }
+
                   if (c.name.includes("[placeableObject]")) {
                     placeableObjects.push(c);
                   }

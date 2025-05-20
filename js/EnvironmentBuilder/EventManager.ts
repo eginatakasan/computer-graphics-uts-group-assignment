@@ -7,6 +7,7 @@ import { StateManager } from "./core/StateManager";
 import { ModelLoader } from "./tools/ModelLoader";
 import { RoomBuilder } from "./tools/RoomBuilder";
 import { CommandManager } from "./core/CommandManager";
+import { BoxPlacer } from "./tools/BoxPlacer";
 
 export class EventManager {
   private controller: Controller;
@@ -17,12 +18,15 @@ export class EventManager {
   private modelLoader: ModelLoader;
   private roomBuilder: RoomBuilder;
   private doorPlacer: DoorPlacer;
+  private boxPlacer: BoxPlacer;
   private textureManager: TextureManager;
   private stateManager: StateManager;
   private commandManager: CommandManager;
   private mouseDownHandler: (event: MouseEvent) => void;
   private mouseUpHandler: (event: MouseEvent) => void;
   private mouseMoveHandler: (event: MouseEvent) => void;
+  private boxMoveHandler: (event: MouseEvent) => void;
+  private boxClickHandler: (event: MouseEvent) => void;
 
   constructor(stateManager: StateManager, controller: Controller) {
     this.stateManager = stateManager;
@@ -247,6 +251,24 @@ export class EventManager {
     );
   }
 
+  public setupBoxPlacementHandlers(): void {
+    this.boxMoveHandler = (event: MouseEvent) => {
+      this.boxPlacer.update(event);
+    };
+
+    this.boxClickHandler = (event: MouseEvent) => {
+      this.boxPlacer.onClick(event);
+    };
+
+    this.canvas.addEventListener("mousemove", this.boxMoveHandler);
+    this.canvas.addEventListener("click", this.boxClickHandler);
+  }
+
+  public removeBoxPlacementHandlers(): void {
+    this.canvas.removeEventListener("mousemove", this.boxMoveHandler);
+    this.canvas.removeEventListener("click", this.boxClickHandler);
+  }
+
   public setModelLoader(modelLoader: ModelLoader): void {
     this.modelLoader = modelLoader;
   }
@@ -255,6 +277,9 @@ export class EventManager {
   }
   public setDoorPlacer(doorPlacer: DoorPlacer): void {
     this.doorPlacer = doorPlacer;
+  }
+  public setBoxPlacer(boxPlacer: BoxPlacer): void {
+    this.boxPlacer = boxPlacer;
   }
   public setTextureManager(textureManager: TextureManager): void {
     this.textureManager = textureManager;

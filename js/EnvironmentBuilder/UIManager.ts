@@ -16,6 +16,7 @@ export class UIManager {
   private roomToolElement: HTMLButtonElement;
   private doorButtonElement: HTMLButtonElement;
   private deleteButtonElement: HTMLButtonElement;
+  private boxButtonElement: HTMLButtonElement;
   private canvas: HTMLCanvasElement;
   private objectLoader: ObjectLoader;
   private modelLoader: ModelLoader;
@@ -30,6 +31,7 @@ export class UIManager {
   public isRoomToolActive: boolean = false;
   public isDoorPlacementActive: boolean = false;
   public isDeleteToolActive: boolean = false;
+  public isBoxPlacementActive: boolean = false;
   public isRoomsSelectable: boolean = false;
   public modelScale: number = 0.7;
   public textureRepeatU: number = 1;
@@ -438,6 +440,20 @@ export class UIManager {
   }
 
   private setupToolButtons(): void {
+    // Add Box Placement button
+    this.boxButtonElement = document.createElement("button");
+    this.boxButtonElement.id = "box-tool";
+    this.boxButtonElement.textContent = "Place Box";
+    this.boxButtonElement.style.marginTop = "10px";
+    this.roomToolElement.parentNode?.insertBefore(
+      this.boxButtonElement,
+      this.roomToolElement.nextSibling
+    );
+
+    this.boxButtonElement.addEventListener("click", () => {
+      this.toggleBoxPlacement();
+    });
+
     // Add Delete Tool button
     this.deleteButtonElement = document.createElement("button");
     this.deleteButtonElement.id = "delete-tool";
@@ -477,6 +493,7 @@ export class UIManager {
     this.isRoomToolActive = !this.isRoomToolActive;
     this.isDoorPlacementActive = false;
     this.isDeleteToolActive = false;
+    this.isBoxPlacementActive = false;
 
     this.updateButtonStyles();
     this.controller.setDragControlsEnabled(!this.isRoomToolActive);
@@ -489,6 +506,7 @@ export class UIManager {
     this.isRoomToolActive = false;
     this.isDeleteToolActive = false;
     this.isDoorPlacementActive = !this.isDoorPlacementActive;
+    this.isBoxPlacementActive = false;
 
     this.updateButtonStyles();
     this.controller.setDragControlsEnabled(!this.isDoorPlacementActive);
@@ -500,6 +518,7 @@ export class UIManager {
     this.isDeleteToolActive = !this.isDeleteToolActive;
     this.isRoomToolActive = false;
     this.isDoorPlacementActive = false;
+    this.isBoxPlacementActive = false;
 
     this.updateButtonStyles();
     this.canvas.style.cursor = this.isDeleteToolActive
@@ -510,6 +529,21 @@ export class UIManager {
     this.stateManager.setDeleteToolActive(this.isDeleteToolActive);
   }
 
+  public toggleBoxPlacement(): void {
+    this.isBoxPlacementActive = !this.isBoxPlacementActive;
+    this.isRoomToolActive = false;
+    this.isDoorPlacementActive = false;
+    this.isDeleteToolActive = false;
+
+    this.updateButtonStyles();
+    this.controller.setDragControlsEnabled(!this.isBoxPlacementActive);
+    this.canvas.style.cursor = this.isBoxPlacementActive
+      ? "crosshair"
+      : "default";
+
+    this.stateManager.setBoxPlacementActive(this.isBoxPlacementActive);
+  }
+
   private updateButtonStyles(): void {
     this.deleteButtonElement.style.backgroundColor = this.isDeleteToolActive
       ? "#00ff00"
@@ -518,6 +552,9 @@ export class UIManager {
       ? "#00ff00"
       : "#fff";
     this.roomToolElement.style.backgroundColor = this.isRoomToolActive
+      ? "#00ff00"
+      : "#fff";
+    this.boxButtonElement.style.backgroundColor = this.isBoxPlacementActive
       ? "#00ff00"
       : "#fff";
   }
