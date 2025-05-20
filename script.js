@@ -234,7 +234,7 @@ function loadPositions(path) {
 }
 
 function loadHouse() {
-  loadPositions("/positions/houseWithHoles.json");
+  loadPositions("/positions/houseWithHoles 1.json");
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
