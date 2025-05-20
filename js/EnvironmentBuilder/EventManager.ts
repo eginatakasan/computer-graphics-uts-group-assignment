@@ -127,6 +127,8 @@ export class EventManager {
         return;
       }
 
+      console.log(selectedMesh);
+
       const isRoomsSelectable = this.uiManager.isRoomsSelectableEnabled();
       if (
         !isRoomsSelectable &&
@@ -134,20 +136,25 @@ export class EventManager {
           selectedMesh.name.includes("floor"))
       ) {
         return;
-      }
+      } else {
+        if (isRoomsSelectable) {
+          this.stateManager.setSelectedObject(selectedMesh);
+          this.uiManager.createObjectScaleFolder(selectedMesh);
+        } else {
+          // Find the top-level parent that's a placed object
+          let parent = selectedMesh;
+          const placedObjects = this.stateManager.placedObjects;
 
-      // Find the top-level parent that's a placed object
-      let parent = selectedMesh;
-      const placedObjects = this.stateManager.placedObjects;
+          while (parent.parent && !placedObjects.includes(parent)) {
+            parent = parent.parent;
+          }
 
-      while (parent.parent && !placedObjects.includes(parent)) {
-        parent = parent.parent;
-      }
-
-      if (placedObjects.includes(parent)) {
-        this.stateManager.setSelectedObject(parent);
-        // Create scale slider for selected object
-        this.uiManager.createObjectScaleFolder(parent);
+          if (placedObjects.includes(parent)) {
+            this.stateManager.setSelectedObject(parent);
+            // Create scale slider for selected object
+            this.uiManager.createObjectScaleFolder(parent);
+          }
+        }
       }
     }
   }

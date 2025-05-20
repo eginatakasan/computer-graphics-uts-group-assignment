@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { StateManager } from "../core/StateManager";
 
-const wallHeight = 3;
+const wallHeight = 5;
 const wallThickness = 0.1;
 
 export class RoomBuilder {

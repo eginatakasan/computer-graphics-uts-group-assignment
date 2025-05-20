@@ -87,7 +87,7 @@ export class UIManager {
     // Add texture repeat slider
     const textureFolder = this.gui.addFolder("Texture Settings");
     textureFolder
-      .add({ repeatU: this.textureRepeatU }, "repeatU", 0.25, 5, 0.25)
+      .add({ repeatU: this.textureRepeatU }, "repeatU", 0.05, 5, 0.05)
       .name("Texture Repeat U")
       .onChange((value) => {
         this.textureRepeatU = value;
@@ -95,7 +95,7 @@ export class UIManager {
       });
 
     textureFolder
-      .add({ repeatV: this.textureRepeatV }, "repeatV", 0.25, 5, 0.25)
+      .add({ repeatV: this.textureRepeatV }, "repeatV", 0.05, 5, 0.05)
       .name("Texture Repeat V")
       .onChange((value) => {
         this.textureRepeatV = value;
@@ -324,7 +324,7 @@ export class UIManager {
     this.objectScaleFolder = this.gui.addFolder("Selected Object");
     const scaleControl = { scale: 1.0 };
     this.objectScaleFolder
-      .add(scaleControl, "scale", 0.1, 3.0, 0.1)
+      .add(scaleControl, "scale", 0.01, 5.0, 0.01)
       .name("Scale")
       .onChange((value) => {
         if (selectedObject) {

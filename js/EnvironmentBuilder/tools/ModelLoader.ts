@@ -285,6 +285,11 @@ export class ModelLoader {
                     return;
                   }
 
+
+                  if (c.name === "placeableObject") {
+                    placeableObjects.push(c);
+                  }
+
                   if (
                     c.name.includes("Doorway") &&
                     !c.name.includes("front") &&
@@ -301,6 +306,26 @@ export class ModelLoader {
               });
 
               // Update placedObjects in state manager
+
+              roomObjects.forEach((obj) => {
+                obj.traverse((child) => {
+                  if (child.name.includes("Wall")) {
+                    if (child instanceof THREE.Mesh) {
+                      child.scale.set(1, 5 / 3, 1);
+                      child.geometry.computeBoundingBox();
+                      // const repeat = child.material.map?.repeat;
+                      // child.material.map.repeat.set(
+                      //   repeat.x,
+                      //   (repeat.y * 5) / 3
+                      // );
+                      const box = new THREE.Box3();
+                      box.copy(child.geometry.boundingBox);
+                      child.position.y = 2.5;
+                    }
+                  }
+                });
+              });
+
               this.stateManager.setPlacedObjects(placeableObjects);
               this.stateManager.setRoomObjects(roomObjects);
 

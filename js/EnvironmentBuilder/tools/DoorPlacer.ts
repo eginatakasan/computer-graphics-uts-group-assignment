@@ -6,7 +6,8 @@ import { Object3D } from "three";
 import { Object3DEventMap } from "three";
 import { Intersection } from "three";
 
-const doorWidth = 1.2;
+
+const doorWidth = 2;
 const doorHeight = 2.5;
 const wallThickness = 0.1;
 
@@ -31,7 +32,7 @@ export class DoorPlacer {
   private async loadDoorModel(): Promise<void> {
     try {
       const gltf = await this.loader.loadAsync(DOOR);
-      this.doorModel = this.transformModel(gltf.scene, 0.8);
+      this.doorModel = this.transformModel(gltf.scene, 1.2);
       this.doorModel.name = "door";
     } catch (error) {
       console.error("Error loading door model:", error);
@@ -151,6 +152,8 @@ export class DoorPlacer {
     }
 
     const wall = intersectedWalls[0];
+    const wall1 = intersectedWalls[1];
+
     // Create new door instance
     const door = this.doorModel.clone();
     // Position door at intersection point but keep y at 0
@@ -171,81 +174,114 @@ export class DoorPlacer {
       );
     }
 
+
+    this.makeAHole(wall.object as THREE.Mesh, position);
+    if (wall1) {
+      this.makeAHole(wall1.object as THREE.Mesh, position);
+    }
+
     this.stateManager.scene.add(door);
     this.stateManager.addPlacedObject(door);
   };
 
-  // private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
-  //   const isFrontOrBackWall =
-  //     wall.name.includes("front") || wall.name.includes("back");
 
-  //   // Store the current material properties
-  //   const currentMaterial = wall.clone().material as THREE.MeshStandardMaterial;
-  //   const currentTexture = currentMaterial.map;
+  private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
+    const isFrontOrBackWall =
+      wall.name.includes("front") || wall.name.includes("back");
 
-  //   // Create a shape for the wall
-  //   const wallBox = new THREE.Box3().setFromObject(wall);
-  //   const wallSize = wallBox.getSize(new THREE.Vector3());
-  //   const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
-  //   const wallHeight = wallSize.y;
+    // Store the current material properties
+    const currentMaterial = wall.clone().material as THREE.MeshStandardMaterial;
+    const currentTexture = currentMaterial.map;
 
-  //   const shape = new THREE.Shape();
-  //   shape.moveTo(-wallWidth / 2, wallHeight / 2);
-  //   shape.lineTo(-wallWidth / 2, -wallHeight / 2);
-  //   shape.lineTo(wallWidth / 2, -wallHeight / 2);
-  //   shape.lineTo(wallWidth / 2, wallHeight / 2);
-  //   shape.lineTo(-wallWidth / 2, wallHeight / 2);
+    // Get wall dimensions
+    wall.geometry.computeBoundingBox();
+    const wallBox = new THREE.Box3().copy(wall.geometry.boundingBox);
+    const wallSize = wallBox.getSize(new THREE.Vector3());
+    const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
+    const wallHeight = 3;
 
-  //   // Convert door position to wall's local space
-  //   const doorPosition = position.clone();
-  //   wall.worldToLocal(doorPosition);
+    // Convert door position to wall's local space
+    const doorPosition = position.clone();
+    wall.worldToLocal(doorPosition);
 
-  //   // Create hole path
-  //   const hole = new THREE.Path();
-  //   const holeWidth = doorWidth - wallThickness;
-  //   const holeHeight = doorHeight - wallThickness;
+    // Create or get existing doorways
+    let doorways: { x: number; width: number; height: number }[] = [];
+    if (wall.userData.doorways) {
+      doorways = wall.userData.doorways;
+    }
 
-  //   // Position hole at ground level (y=0)
-  //   const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
-  //   const holeY = -wallHeight / 2 + holeHeight / 2; // This centers the hole vertically at ground level
+    // Add new doorway
+    const holeWidth = 2 - wallThickness;
+    const holeHeight = 2.5;
+    const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
+    doorways.push({
+      x: holeX,
+      width: holeWidth,
+      height: holeHeight,
+    });
 
-  //   hole.moveTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
-  //   hole.lineTo(holeX - holeWidth / 2, holeY - holeHeight / 2);
-  //   hole.lineTo(holeX + holeWidth / 2, holeY - holeHeight / 2);
-  //   hole.lineTo(holeX + holeWidth / 2, holeY + holeHeight / 2);
-  //   hole.lineTo(holeX - holeWidth / 2, holeY + holeHeight / 2);
+    // Store updated doorways
+    wall.userData.doorways = doorways;
 
-  //   shape.holes.push(hole);
+    // Sort doorways by x position to ensure consistent shape creation
+    doorways.sort((a, b) => a.x - b.x);
 
-  //   // Create extruded geometry with exact wall thickness
-  //   const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-  //     depth: wallThickness,
-  //     bevelEnabled: false,
-  //   };
+    // Create shape with all doorways
+    const shape = new THREE.Shape();
+    shape.moveTo(-wallWidth / 2, wallHeight / 2);
+    shape.lineTo(-wallWidth / 2, -wallHeight / 2);
 
-  //   const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-  //   extrudeGeometry.translate(0, 0, -wallThickness / 2);
-  //   if (!isFrontOrBackWall) {
-  //     extrudeGeometry.rotateY(-Math.PI / 2);
-  //   }
+    // Add segments for each doorway
+    let currentX = -wallWidth / 2;
+    for (const doorway of doorways) {
+      // Add segment to doorway
+      shape.lineTo(doorway.x - doorway.width / 2, -wallHeight / 2);
+      shape.lineTo(
+        doorway.x - doorway.width / 2,
+        -wallHeight / 2 + doorway.height
+      );
+      shape.lineTo(
+        doorway.x + doorway.width / 2,
+        -wallHeight / 2 + doorway.height
+      );
+      shape.lineTo(doorway.x + doorway.width / 2, -wallHeight / 2);
+      currentX = doorway.x + doorway.width / 2;
+    }
 
-  //   wall.name += "Doorway";
+    // Complete the shape
+    shape.lineTo(wallWidth / 2, -wallHeight / 2);
+    shape.lineTo(wallWidth / 2, wallHeight / 2);
+    shape.lineTo(-wallWidth / 2, wallHeight / 2);
 
-  //   // Update wall geometry
-  //   wall.geometry.dispose();
-  //   wall.geometry = extrudeGeometry;
+    // Create extruded geometry with exact wall thickness
+    const extrudeSettings: THREE.ExtrudeGeometryOptions = {
+      depth: wallThickness,
+      bevelEnabled: false,
+    };
 
-  //   // Create new material with preserved texture settings
-  //   const newMaterial = currentMaterial.clone();
-  //   if (currentTexture) {
-  //     newMaterial.map = currentTexture.clone();
-  //     newMaterial.map.repeat.set(
-  //       this.stateManager.getTextureRepeatU(),
-  //       this.stateManager.getTextureRepeatV()
-  //     );
-  //     newMaterial.map.wrapS = THREE.RepeatWrapping;
-  //     newMaterial.map.wrapT = THREE.RepeatWrapping;
-  //   }
-  //   wall.material = newMaterial;
-  // }
+    const extrudeGeometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    extrudeGeometry.translate(0, 0, -wallThickness / 2);
+    if (!isFrontOrBackWall) {
+      extrudeGeometry.rotateY(-Math.PI / 2);
+    }
+
+    wall.name += "Doorway";
+
+    // Update wall geometry
+    wall.geometry.dispose();
+    wall.geometry = extrudeGeometry;
+
+    // Create new material with preserved texture settings
+    const newMaterial = currentMaterial.clone();
+    if (currentTexture) {
+      newMaterial.map = currentTexture.clone();
+      newMaterial.map.repeat.set(
+        this.stateManager.getTextureRepeatU(),
+        this.stateManager.getTextureRepeatV()
+      );
+      newMaterial.map.wrapS = THREE.RepeatWrapping;
+      newMaterial.map.wrapT = THREE.RepeatWrapping;
+    }
+    wall.material = newMaterial;
+  }
 }
