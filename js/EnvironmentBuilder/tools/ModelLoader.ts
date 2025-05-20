@@ -280,13 +280,17 @@ export class ModelLoader {
                     return;
                   }
 
-                  if (c.name === "room") {
+                  if (c.name.includes("[Room]")) {
                     roomObjects.push(c);
                     return;
                   }
 
+<<<<<<< Updated upstream
 
                   if (c.name === "placeableObject") {
+=======
+                  if (c.name.includes("[placeableObject]")) {
+>>>>>>> Stashed changes
                     placeableObjects.push(c);
                   }
 

@@ -2,8 +2,8 @@ import * as THREE from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
-import { enableCoordinatePicking } from './cordinate-picker.js';
-import { generateRoomMesses, createDustBunny } from './generate-mess.js';
+import { enableCoordinatePicking } from "./cordinate-picker.js";
+import { generateRoomMesses, createDustBunny } from "./generate-mess.js";
 
 let scene, camera, renderer, controls;
 let currentHandsModel; // Renamed from boxModel
@@ -200,9 +200,9 @@ function loadPositions(path) {
             return;
           }
           child.traverse((c) => {
-            if (c.name === "placeableObject") {
+            if (c.name.includes("[placeableObject]")) {
               placeableObjects.push(c);
-            } else if (c.name === "room") {
+            } else if (c.name.includes("[Room]")) {
               roomObjects.push(c);
             }
           });
@@ -238,8 +238,8 @@ function loadHouse() {
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
-  generateRoomMesses(scene, 'single-bedroom', 4);
-  const pos = new THREE.Vector3(3.20, 0.82, 0.27);
+  generateRoomMesses(scene, "single-bedroom", 4);
+  const pos = new THREE.Vector3(3.2, 0.82, 0.27);
   const bunny = createDustBunny(pos);
   scene.add(bunny);
 }
@@ -502,7 +502,6 @@ function init() {
   loadHouse();
   setupInteractableObjects();
 
-
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
 
@@ -529,7 +528,6 @@ function init() {
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("keyup", onKeyUp);
 
-
   let pickingMode = { value: false }; // Shared reactive reference
 
   // Call coordinate picker with mode reference
@@ -539,7 +537,9 @@ function init() {
   document.addEventListener("keydown", (e) => {
     if (e.code === "KeyP") {
       pickingMode.value = !pickingMode.value;
-      console.log(`🖱️ Coordinate Picker Mode: ${pickingMode.value ? "ON" : "OFF"}`);
+      console.log(
+        `🖱️ Coordinate Picker Mode: ${pickingMode.value ? "ON" : "OFF"}`
+      );
     }
   });
 }

@@ -51,6 +51,11 @@ export class UIManager {
     this.stateManager.subscribe("placedObjectsChanged", () => {
       this.updateObjectList();
     });
+
+    // Subscribe to room objects changes
+    this.stateManager.subscribe("roomObjectsChanged", () => {
+      this.updateObjectList();
+    });
   }
 
   private setupGUI(): void {
@@ -115,7 +120,7 @@ export class UIManager {
   }
 
   private createObjectListUI(): void {
-    // Create a container for the object list
+    // Create a container for both lists
     this.objectListContainer = document.createElement("div");
     this.objectListContainer.id = "object-list-container";
     this.objectListContainer.style.position = "absolute";
@@ -130,7 +135,23 @@ export class UIManager {
     this.objectListContainer.style.padding = "10px";
     this.objectListContainer.style.zIndex = "1000";
 
-    // Add title
+    // Add title for room objects
+    const roomTitle = document.createElement("h3");
+    roomTitle.textContent = "Room Objects";
+    roomTitle.style.margin = "0 0 10px 0";
+    roomTitle.style.padding = "0 0 5px 0";
+    roomTitle.style.borderBottom = "1px solid #ccc";
+    this.objectListContainer.appendChild(roomTitle);
+
+    // Create room objects list container
+    const roomListElement = document.createElement("ul");
+    roomListElement.id = "room-object-list";
+    roomListElement.style.listStyle = "none";
+    roomListElement.style.padding = "0";
+    roomListElement.style.margin = "0 0 20px 0";
+    this.objectListContainer.appendChild(roomListElement);
+
+    // Add title for regular objects
     const title = document.createElement("h3");
     title.textContent = "Scene Objects";
     title.style.margin = "0 0 10px 0";
@@ -138,7 +159,7 @@ export class UIManager {
     title.style.borderBottom = "1px solid #ccc";
     this.objectListContainer.appendChild(title);
 
-    // Create list container
+    // Create regular objects list container
     const listElement = document.createElement("ul");
     listElement.id = "object-list";
     listElement.style.listStyle = "none";
@@ -149,20 +170,141 @@ export class UIManager {
     // Add to document
     document.body.appendChild(this.objectListContainer);
 
-    // Initial population of the list
+    // Initial population of both lists
     this.updateObjectList();
   }
 
   public updateObjectList(): void {
     if (!this.objectListContainer) return;
 
+    const roomListElement =
+      this.objectListContainer.querySelector("#room-object-list");
     const listElement = this.objectListContainer.querySelector("#object-list");
-    if (!listElement) return;
+    if (!roomListElement || !listElement) return;
 
-    // Clear existing list
+    // Clear existing lists
+    roomListElement.innerHTML = "";
     listElement.innerHTML = "";
 
-    // Add each object to the list
+    // Add room objects to the room list
+    if (
+      this.stateManager.roomObjects &&
+      this.stateManager.roomObjects.length > 0
+    ) {
+      this.stateManager.roomObjects.forEach((room, roomIndex) => {
+        // Create room header
+        const roomHeader = document.createElement("li");
+        roomHeader.style.padding = "5px";
+        roomHeader.style.margin = "2px 0";
+        roomHeader.style.backgroundColor = "#e0e0e0";
+        roomHeader.style.borderRadius = "3px";
+        roomHeader.style.cursor = "pointer";
+        roomHeader.style.display = "flex";
+        roomHeader.style.justifyContent = "space-between";
+        roomHeader.style.alignItems = "center";
+        roomHeader.style.fontWeight = "bold";
+
+        // Create container for room name
+        const roomNameContainer = document.createElement("span");
+        roomNameContainer.style.flex = "1";
+
+        // Highlight selected room
+        if (this.stateManager.selectedObject === room) {
+          roomHeader.style.backgroundColor = "#a0e0a0";
+        }
+
+        // Set room name or default name
+        const roomName = room.name || `Room ${roomIndex + 1}`;
+        roomNameContainer.textContent = roomName;
+
+        // Create rename button for room
+        const roomRenameButton = document.createElement("button");
+        roomRenameButton.textContent = "✎";
+        roomRenameButton.style.marginLeft = "5px";
+        roomRenameButton.style.padding = "2px 5px";
+        roomRenameButton.style.border = "none";
+        roomRenameButton.style.borderRadius = "3px";
+        roomRenameButton.style.backgroundColor = "#4CAF50";
+        roomRenameButton.style.color = "white";
+        roomRenameButton.style.cursor = "pointer";
+        roomRenameButton.title = "Rename room";
+
+        // Add click events for room
+        roomNameContainer.addEventListener("click", () => {
+          this.selectObject(room);
+        });
+
+        roomRenameButton.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.renameObject(room, roomNameContainer);
+        });
+
+        roomHeader.appendChild(roomNameContainer);
+        roomHeader.appendChild(roomRenameButton);
+        roomListElement.appendChild(roomHeader);
+
+        // Add room children
+        room.children.forEach((child, childIndex) => {
+          const childItem = document.createElement("li");
+          childItem.style.padding = "5px 5px 5px 20px"; // Indent children
+          childItem.style.margin = "2px 0";
+          childItem.style.backgroundColor = "#f0f0f0";
+          childItem.style.borderRadius = "3px";
+          childItem.style.cursor = "pointer";
+          childItem.style.display = "flex";
+          childItem.style.justifyContent = "space-between";
+          childItem.style.alignItems = "center";
+
+          // Create container for child name
+          const childNameContainer = document.createElement("span");
+          childNameContainer.style.flex = "1";
+
+          // Highlight selected child
+          if (this.stateManager.selectedObject === child) {
+            childItem.style.backgroundColor = "#a0e0a0";
+            childNameContainer.style.fontWeight = "bold";
+          }
+
+          // Set child name or default name
+          const childName = child.name || `${roomName} Part ${childIndex + 1}`;
+          childNameContainer.textContent = childName;
+
+          // Create rename button for child
+          const childRenameButton = document.createElement("button");
+          childRenameButton.textContent = "✎";
+          childRenameButton.style.marginLeft = "5px";
+          childRenameButton.style.padding = "2px 5px";
+          childRenameButton.style.border = "none";
+          childRenameButton.style.borderRadius = "3px";
+          childRenameButton.style.backgroundColor = "#4CAF50";
+          childRenameButton.style.color = "white";
+          childRenameButton.style.cursor = "pointer";
+          childRenameButton.title = "Rename part";
+
+          // Add click events for child
+          childNameContainer.addEventListener("click", () => {
+            this.selectObject(child);
+          });
+
+          childRenameButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            this.renameObject(child, childNameContainer);
+          });
+
+          childItem.appendChild(childNameContainer);
+          childItem.appendChild(childRenameButton);
+          roomListElement.appendChild(childItem);
+        });
+      });
+    } else {
+      const emptyMessage = document.createElement("li");
+      emptyMessage.textContent = "No rooms in scene";
+      emptyMessage.style.fontStyle = "italic";
+      emptyMessage.style.color = "#666";
+      roomListElement.appendChild(emptyMessage);
+    }
+
+    // Add regular objects to the object list
     if (
       this.stateManager.placedObjects &&
       this.stateManager.placedObjects.length > 0
@@ -174,22 +316,49 @@ export class UIManager {
         listItem.style.backgroundColor = "#f0f0f0";
         listItem.style.borderRadius = "3px";
         listItem.style.cursor = "pointer";
+        listItem.style.display = "flex";
+        listItem.style.justifyContent = "space-between";
+        listItem.style.alignItems = "center";
+
+        // Create container for object name
+        const nameContainer = document.createElement("span");
+        nameContainer.style.flex = "1";
 
         // Highlight selected object
         if (this.stateManager.selectedObject === object) {
           listItem.style.backgroundColor = "#a0e0a0";
-          listItem.style.fontWeight = "bold";
+          nameContainer.style.fontWeight = "bold";
         }
 
         // Set object name or default name
         const objectName = object.name || `Object ${index + 1}`;
-        listItem.textContent = objectName;
+        nameContainer.textContent = objectName;
+
+        // Create rename button
+        const renameButton = document.createElement("button");
+        renameButton.textContent = "✎";
+        renameButton.style.marginLeft = "5px";
+        renameButton.style.padding = "2px 5px";
+        renameButton.style.border = "none";
+        renameButton.style.borderRadius = "3px";
+        renameButton.style.backgroundColor = "#4CAF50";
+        renameButton.style.color = "white";
+        renameButton.style.cursor = "pointer";
+        renameButton.title = "Rename object";
 
         // Add click event to select the object
-        listItem.addEventListener("click", () => {
+        nameContainer.addEventListener("click", () => {
           this.selectObject(object);
         });
 
+        // Add click event to rename the object
+        renameButton.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.renameObject(object, nameContainer);
+        });
+
+        listItem.appendChild(nameContainer);
+        listItem.appendChild(renameButton);
         listElement.appendChild(listItem);
       });
     } else {
@@ -199,6 +368,46 @@ export class UIManager {
       emptyMessage.style.color = "#666";
       listElement.appendChild(emptyMessage);
     }
+  }
+
+  private renameObject(
+    object: THREE.Object3D,
+    nameContainer: HTMLElement
+  ): void {
+    const currentName = object.name || "";
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = currentName;
+    input.style.width = "100%";
+    input.style.padding = "2px";
+    input.style.marginRight = "5px";
+    input.style.border = "1px solid #ccc";
+    input.style.borderRadius = "3px";
+
+    // Replace the text content with input
+    const originalContent = nameContainer.textContent;
+    nameContainer.textContent = "";
+    nameContainer.appendChild(input);
+    input.focus();
+    input.select();
+
+    const handleRename = () => {
+      const newName = input.value.trim();
+      if (newName) {
+        object.name = newName;
+        nameContainer.textContent = newName;
+      } else {
+        nameContainer.textContent = originalContent;
+      }
+      this.updateObjectList(); // Refresh the list to update all instances
+    };
+
+    input.addEventListener("blur", handleRename);
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        handleRename();
+      }
+    });
   }
 
   private selectObject(object: THREE.Object3D): void {
