@@ -1,0 +1,38 @@
+{
+    "pan": {
+        "dirtyModel": "/models/pan_dirty.glb",
+        "cleanModel": "/models/pan_clean.glb",
+        "dirtyScale": 0.4,
+        "cleanScale": 0.4
+    },
+    "bowl": {
+        "dirtyModel": "/models/bowl_dirty.glb",
+        "cleanModel": "/models/bowl_clean.glb",
+        "dirtyScale": 0.4,
+        "cleanScale": 0.4
+    },
+    "plate": {
+        "dirtyModel": "/models/plate_dirty.glb",
+        "cleanModel": "/models/plate_clean.glb",
+        "dirtyScale": 0.4,
+        "cleanScale": 0.4
+    },
+    "plate_stack": {
+        "dirtyModel": "/models/Stack_Plates.glb",
+        "cleanModel": "",
+        "dirtyScale": 1.4,
+        "cleanScale": 1.4
+    },
+    "bowl_stack": {
+        "dirtyModel": "/models/Stack_Bowls.glb",
+        "cleanModel": "",
+        "dirtyScale": 1.4,
+        "cleanScale": 1.4
+    },
+    "clothes": {
+        "dirtyModel": "/models/clothes_mess.glb",
+        "cleanModel": "/models/clothes_pile.glb",
+        "dirtyScale": 0.5,
+        "cleanScale": 1.3
+    }
+}

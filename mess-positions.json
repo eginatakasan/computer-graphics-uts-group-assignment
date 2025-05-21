@@ -1,54 +1,147 @@
 {
     "single-bedroom": [
         {
-            "x": 14.03,
-            "y": 0.01,
-            "z": 6.35
+            "position": {
+                "x": 14.03,
+                "y": 0.01,
+                "z": 6.35
+            },
+            "location": "floor"
         },
         {
-            "x": 15.16,
-            "y": 0.01,
-            "z": 5.97
+            "position": {
+                "x": 15.16,
+                "y": 0.01,
+                "z": 5.97
+            },
+            "location": "floor"
         },
         {
-            "x": 16.94,
-            "y": 0.01,
-            "z": 3.42
+            "position": {
+                "x": 16.94,
+                "y": 0.01,
+                "z": 3.42
+            },
+            "location": "floor"
         },
         {
-            "x": 13.82,
-            "y": 0.01,
-            "z": 3.09
+            "position": {
+                "x": 13.82,
+                "y": 0.01,
+                "z": 3.09
+            },
+            "location": "floor"
         },
         {
-            "x": 15.05,
-            "y": 0.01,
-            "z": 9.50
+            "position": {
+                "x": 15.05,
+                "y": 0.01,
+                "z": 9.5
+            },
+            "location": "floor"
         },
         {
-            "x": 15.46,
-            "y": 0.01,
-            "z": 8.51
+            "position": {
+                "x": 15.46,
+                "y": 0.01,
+                "z": 8.51
+            },
+            "location": "floor"
         },
         {
-            "x": 17.76,
-            "y": 0.01,
-            "z": 5.94
+            "position": {
+                "x": 17.76,
+                "y": 0.01,
+                "z": 5.94
+            },
+            "location": "floor"
         },
         {
-            "x": 12.22,
-            "y": 0.01,
-            "z": 5.23
+            "position": {
+                "x": 12.22,
+                "y": 0.01,
+                "z": 5.23
+            },
+            "location": "floor"
         },
         {
-            "x": 13.70,
-            "y": 0.01,
-            "z": 5.10
+            "position": {
+                "x": 13.7,
+                "y": 0.01,
+                "z": 5.1
+            },
+            "location": "floor"
         },
         {
-            "x": 12.47,
-            "y": 0.01,
-            "z": 8.00
+            "position": {
+                "x": 12.47,
+                "y": 0.01,
+                "z": 8.0
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": 17.98,
+                "y": 1.94,
+                "z": 4.08
+            },
+            "location": "sideWall"
+        },
+        {
+            "position": {
+                "x": 11.98,
+                "y": 1.86,
+                "z": 5.86
+            },
+            "location": "sideWall"
+        },
+        {
+            "position": {
+                "x": 17.16,
+                "y": 0.91,
+                "z": 7.11
+            },
+            "location": "object",
+            "subtype": "clothes"
+        }
+    ],
+    "kitchen": [
+        {
+            "position": {
+                "x": -5.08,
+                "y": 1.10,
+                "z": -7.47
+            },
+            "location": "kitchen-top",
+            "subtype": "kitchen-top"
+        },
+        {
+            "position": {
+                "x": -5.04,
+                "y": 1.10,
+                "z": -4.93
+            },
+            "location": "kitchen-top",
+            "subtype": "kitchen-top"
+        },
+        {
+            "position": {
+                "x": -4.60,
+                "y": 1.10,
+                "z": -6.88
+            },
+            "location": "kitchen-top",
+            "subtype": "kitchen-top"
+        },
+        {
+            "position": {
+                "x": 6.04,
+                "y": 1.33,
+                "z": -7.01
+            },
+            "location": "table-top",
+            "subtype": "table-top"
         }
     ]
 }

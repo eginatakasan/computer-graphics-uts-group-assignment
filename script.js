@@ -3,7 +3,7 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { enableCoordinatePicking } from "./cordinate-picker.js";
-import { generateRoomMesses, createDustBunny } from "./generate-mess.js";
+import { generateRoomFloorMesses, generateRoomWallMesses, generateRoomObjectMesses } from "./generate-mess.js";
 
 let scene, camera, renderer, controls, mixer;
 const animationActions = {};
@@ -59,10 +59,59 @@ function highlightObject(object) {}
 
 function unhighlightObject(object) {}
 
+function highlightWithColor(object) {
+  if (object && object.material && object.material.color) {
+    object.material.userData = object.material.userData || {};
+    object.material.userData.originalColor = object.material.color.getHex();
+    object.material.color.setHex(0xff4444); // red tint highlight
+  }
+}
+
+function unhighlightWithColor(object) {
+  if (object && object.material && object.material.color) {
+    const originalColor = object.material.userData?.originalColor;
+    if (originalColor !== undefined) {
+      object.material.color.setHex(originalColor);
+    }
+  }
+}
+
 function handleObjectInteraction(objectType) {
   // This function is called when an interactable object is being looked at.
   // Add specific actions based on objectType here.
   console.log("Player is looking at:", objectType);
+}
+
+function handleMessInteraction(target) {
+  const type = target.userData.object_type;
+
+  if (type === 'swappable') {
+    const gltfLoader = new GLTFLoader();
+    const swapPath = target.userData.modelSwap;
+    const pos = target.userData.position || target.position;
+    const scale = target.userData.cleanScale || 0.5;
+    const groupToRemove = target.userData.parentGroup || target;
+
+    scene.remove(groupToRemove);
+
+    if (swapPath && swapPath.trim() !== "") {
+      gltfLoader.load(swapPath, (gltf) => {
+        const clean = gltf.scene;
+        clean.position.copy(pos);
+        clean.scale.setScalar(scale);
+        clean.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(clean);
+      });
+    } else {
+      console.log(`🧹 Removed mess '${target.userData.subtype}' with no clean model.`);
+    }
+
+    console.log(`✅ Swapped ${target.userData.subtype} to clean model.`);
+  } else {
+    const groupToRemove = target.userData.ownerGroup || target;
+    scene.remove(groupToRemove);
+    console.log(`🧼 Removed ${type} mess from scene.`);
+  }
 }
 
 function loadPositions(path) {
@@ -135,10 +184,11 @@ function loadHouse() {
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
-  generateRoomMesses(scene, "single-bedroom", 4);
-  const pos = new THREE.Vector3(3.2, 0.82, 0.27);
-  const bunny = createDustBunny(pos);
-  scene.add(bunny);
+  generateRoomFloorMesses(scene, "single-bedroom", 4, 'mess-positions.json', interactableObjects);
+  generateRoomWallMesses(scene, "single-bedroom", 1, 'mess-positions.json', interactableObjects);
+  generateRoomObjectMesses(scene, "single-bedroom", 1, 'mess-positions.json', interactableObjects);
+  generateRoomObjectMesses(scene, "kitchen", 1, 'mess-positions.json', interactableObjects);
+  console.log(interactableObjects);
 }
 
 function loadHandsModel(modelPath) {
@@ -490,7 +540,13 @@ function animate() {
       highlightedObject !== currentTarget &&
       !isInteracting
     ) {
-      unhighlightObject(highlightedObject);
+      // unhighlightObject(highlightedObject);
+      const mat = highlightedObject.material;
+      if (mat && 'emissive' in mat) {
+        unhighlightObject(highlightedObject);
+      } else {
+        unhighlightWithColor(highlightedObject);
+      }
       highlightedObject = null;
     }
 
@@ -499,11 +555,23 @@ function animate() {
       currentTarget !== highlightedObject &&
       !isInteracting
     ) {
-      highlightObject(currentTarget);
+      // highlightObject(currentTarget);
       highlightedObject = currentTarget;
+      const mat = currentTarget.material;
+      if (mat && 'emissive' in mat) {
+        highlightObject(currentTarget); // your original emissive glow
+      } else {
+        highlightWithColor(currentTarget); // fallback for MeshBasicMaterial etc.
+      }
       handleObjectInteraction(currentTarget.userData.object_type);
     } else if (!currentTarget && highlightedObject && !isInteracting) {
-      unhighlightObject(highlightedObject);
+      // unhighlightObject(highlightedObject);
+      const mat = highlightedObject.material;
+      if (mat && 'emissive' in mat) {
+        unhighlightObject(highlightedObject);
+      } else {
+        unhighlightWithColor(highlightedObject);
+      }
       highlightedObject = null;
     }
 
@@ -516,6 +584,8 @@ function animate() {
         progressBarFill.style.width = progress * 100 + "%";
 
         if (progress >= 1) {
+          // handleClothesInteraction(currentTarget);
+          handleMessInteraction(currentTarget);
           console.log(
             "Interaction complete with:",
             interactionTarget.userData.object_type

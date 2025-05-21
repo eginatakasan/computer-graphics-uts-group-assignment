@@ -3,76 +3,59 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // ----- UTILITY FUNCTIONS -----
 
-// Procedural crumpled paper ball
-function createPaperBallMesh(position) {
-    const radius = 0.3;
-    const geometry = new THREE.SphereGeometry(radius, 32, 32);
-
-    for (let i = 0; i < geometry.attributes.position.count; i++) {
-        const x = geometry.attributes.position.getX(i);
-        const y = geometry.attributes.position.getY(i);
-        const z = geometry.attributes.position.getZ(i);
-        const dist = Math.sqrt(x * x + y * y + z * z) / radius;
-        const crumple = (Math.random() - 0.5) * 0.18 * (1 - Math.abs(dist - 1));
-        geometry.attributes.position.setXYZ(i, x + crumple * x, y + crumple * y, z + crumple * z);
-    }
-    geometry.computeVertexNormals();
-
-    const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.9,
-        metalness: 0.0
-    });
-
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(position.x, position.y + 0.3, position.z); // slightly above floor
-    return mesh;
-}
-
-const modelPath = '/models/paper_ball1.glb';
-const scale = 0.3;
-
 const gltfLoader = new GLTFLoader();
 
 /**
  * Loads and places a random paper ball model at the given position.
  */
-export function loadPaperBall(scene, position) {
+export function loadPaperBall(scene, position, interactables = []) {
+    const modelPath = '/models/paper_ball1.glb';
+    const scale = 0.5;
+
     gltfLoader.load(modelPath, (gltf) => {
-        const paper = gltf.scene;
+        const paperGroup = gltf.scene;
 
-        paper.position.set(position.x, position.y + 0.15, position.z);
-        paper.rotation.y = Math.random() * Math.PI * 2;
-        paper.scale.setScalar(scale);
+        paperGroup.position.set(position.x, position.y + 0.15, position.z);
+        paperGroup.rotation.y = Math.random() * Math.PI * 2;
+        paperGroup.scale.setScalar(scale);
 
-        paper.userData.isMess = true;
-        paper.userData.type = 'paperBall';
+        // Traverse and register all mesh children as interactable
+        paperGroup.traverse((child) => {
+            if (child.isMesh) {
+                child.userData.isMess = true;
+                child.userData.type = 'paperBall';
+                child.userData.isInteractable = true;
+                child.userData.object_type = 'paperBall';
+                child.userData.ownerGroup = paperGroup;
 
-        scene.add(paper);
+                interactables.push(child); // ✅ Now mesh can be interacted with
+            }
+        });
+
+        scene.add(paperGroup);
     }, undefined, (error) => {
         console.error("❌ Failed to load paper ball model:", error);
     });
 }
 
+
 // Organic stain mesh
-export function createStainMesh(center, rotationY = 0, options = {}) {
+export function createStainMesh(position, location = "floor", options = {}, interactables = []) {
     const {
         radius = 0.4,
         points = 16,
         noiseFactor = 0.4,
-        color = 0x5c3317
+        color = Math.random() < 0.5 ? 0x5c3317 : 0x7b1113
     } = options;
 
     const shape = new THREE.Shape();
     const angleStep = (Math.PI * 2) / points;
 
-    // Use polar coordinates with radial jitter
     for (let i = 0; i <= points; i++) {
         const angle = i * angleStep;
         const r = radius * (1 - noiseFactor / 2 + Math.random() * noiseFactor);
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r;
-
         if (i === 0) shape.moveTo(x, y);
         else shape.lineTo(x, y);
     }
@@ -87,59 +70,40 @@ export function createStainMesh(center, rotationY = 0, options = {}) {
     });
 
     const stain = new THREE.Mesh(geometry, material);
-    stain.rotation.x = -Math.PI / 2;
-    stain.rotation.y = rotationY;
-    stain.position.copy(center);
-    stain.position.y += 0.01;
+
+    // Align based on location
+    if (location === "floor") {
+        stain.rotation.x = -Math.PI / 2;
+        stain.position.set(position.x, position.y + 0.01, position.z);
+    } else if (location === "faceWall") {
+        stain.rotation.z = Math.PI / 2;
+        stain.position.set(position.x, position.y, position.z + 0.01); // push off wall
+    } else if (location === "sideWall") {
+        stain.rotation.z = Math.PI / 2;
+        stain.rotation.y = Math.PI / 2;
+        stain.position.set(position.x + 0.01, position.y, position.z);
+    }
 
     stain.userData.isMess = true;
     stain.userData.type = "stain";
+    stain.userData.subtype = "wallStain";
+    stain.userData.isInteractable = true;
+    stain.userData.object_type = "stain";
 
+    interactables.push(stain);
     return stain;
 }
+
 
 // Utility: pick N random positions from array
 function pickRandomPositions(arr, count) {
     return arr.sort(() => 0.5 - Math.random()).slice(0, count);
 }
 
-/**
- * Helper to create a stain mesh (flat on wall surface)
- */
-function createWallStainMesh(center, rotationY = 0, color = 0x5c3317, radius = 0.3) {
-    const shape = new THREE.Shape();
-    const points = 10;
-    const angleStep = (Math.PI * 2) / points;
-    for (let i = 0; i < points; i++) {
-        const angle = i * angleStep;
-        const r = radius * (0.75 + Math.random() * 0.4);
-        const x = Math.cos(angle) * r;
-        const y = Math.sin(angle) * r;
-        if (i === 0) shape.moveTo(x, y);
-        else shape.lineTo(x, y);
-    }
-    shape.closePath();
 
-    const geometry = new THREE.ShapeGeometry(shape);
-    const material = new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide,
-        depthWrite: false
-    });
-
-    const stain = new THREE.Mesh(geometry, material);
-    stain.rotation.y = rotationY;
-    stain.rotation.x = 0;
-    stain.rotation.z = Math.PI / 2; // Rotate to lay against wall
-
-    stain.position.copy(center);
-    return stain;
-}
 
 //dust bunnies?
-export function createDustBunny(position) {
+export function createDustBunny(position, interactables = []) {
     const group = new THREE.Group();
     const strandCount = 40;
     const colors = [0x2e2e2e, 0x3a3a3a, 0x4b4b4b];
@@ -159,9 +123,7 @@ export function createDustBunny(position) {
     for (let i = 0; i < strandCount; i++) {
         const controlPoints = Array.from({ length: 8 }).map(() => randomSpherePoint(0.2));
         const curve = new THREE.CatmullRomCurve3(controlPoints);
-        curve.curveType = 'catmullrom'; // default but explicit
-        curve.tension = 0.5; // smooths the interpolation
-
+        curve.tension = 0.5;
 
         const geometry = new THREE.TubeGeometry(curve, 50, 0.002, 4, false);
         const material = new THREE.MeshStandardMaterial({
@@ -170,20 +132,99 @@ export function createDustBunny(position) {
             metalness: 0
         });
 
-        // const mesh = new THREE.Mesh(geometry, material);
-        const mesh = new THREE.Mesh(geometry, HairShaderMaterial.clone());
+        const mesh = new THREE.Mesh(geometry, material);
         group.add(mesh);
     }
 
-    group.position.set(
-        position.x,
-        position.y + 0.01,
-        position.z
-    );
-    group.scale.setScalar(0.6);
+    group.position.set(position.x, position.y + 0.01, position.z);
+    group.scale.setScalar(0.8);
 
-    return group;
+    // Traverse and mark individual meshes as interactable
+    const proxy = new THREE.Mesh(
+        new THREE.SphereGeometry(0.25, 8, 8),
+        new THREE.MeshBasicMaterial({ visible: false }) // set visible: true for debugging
+    );
+    proxy.position.copy(group.position);
+    proxy.userData.isMess = true;
+    proxy.userData.type = "debris";
+    proxy.userData.subtype = "dustBunny";
+    proxy.userData.isInteractable = true;
+    proxy.userData.object_type = "dustBunny";
+    proxy.userData.ownerGroup = group; // link to the visual group
+
+    interactables.push(proxy);
+
+    return { group, proxy };
 }
+
+//clothes mess
+export function loadClothesMess(scene, position, interactables = []) {
+    gltfLoader.load('/models/clothes_mess.glb', (gltf) => {
+        const messGroup = gltf.scene;
+
+        messGroup.position.copy(position);
+        messGroup.scale.setScalar(0.5);
+        messGroup.rotation.y = Math.random() * Math.PI * 2;
+
+        // ✅ Traverse all children and register meshes as interactable
+        messGroup.traverse((child) => {
+            if (child.isMesh) {
+                child.userData.isMess = true;
+                child.userData.type = 'objectMess';
+                child.userData.subtype = 'clothes';
+                child.userData.isInteractable = true;
+                child.userData.object_type = 'clothes';
+                child.userData.modelSwap = '/models/clothes_pile.glb';
+                child.userData.position = position.clone();
+                child.userData.parentGroup = messGroup; // For optional cleanup
+
+                interactables.push(child); // ✅ Add each mesh to interaction
+            }
+        });
+
+        scene.add(messGroup);
+    }, undefined, (err) => {
+        console.error("❌ Failed to load clothes_mess.glb:", err);
+    });
+}
+
+export async function loadSwappableMess(scene, subtype, position, interactables = []) {
+    const config = await fetch('mess-models.json').then(res => res.json());
+    const meta = config[subtype];
+
+    if (!meta || !meta.dirtyModel) {
+        console.warn(`⚠️ No dirtyModel for subtype '${subtype}'`);
+        return;
+    }
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load(meta.dirtyModel, (gltf) => {
+        const group = gltf.scene;
+        group.position.copy(position);
+        group.scale.setScalar(meta.dirtyScale || 0.5);
+        group.rotation.y = Math.random() * Math.PI * 2;
+
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.userData = {
+                    isMess: true,
+                    isInteractable: true,
+                    object_type: 'swappable',
+                    subtype,
+                    modelSwap: meta.cleanModel || null,
+                    position: position.clone(),
+                    dirtyScale: meta.dirtyScale,
+                    cleanScale: meta.cleanScale,
+                    parentGroup: group
+                };
+                interactables.push(child);
+            }
+        });
+
+        scene.add(group);
+    });
+}
+
 
 
 // ------ Main export -------
@@ -195,7 +236,13 @@ export function createDustBunny(position) {
  * @param {*} count - number of messes to create
  * @param {*} jsonPath - path to the mess-positions.json file
  */
-export function generateRoomMesses(scene, roomId = 'room1', count = 3, jsonPath = 'mess-positions.json') {
+export function generateRoomFloorMesses(
+    scene,
+    roomId = 'room1',
+    count = 3,
+    jsonPath = 'mess-positions.json',
+    interactableObjects = []
+) {
     fetch(jsonPath)
         .then(res => {
             if (!res.ok) throw new Error(`Failed to load ${jsonPath}`);
@@ -203,91 +250,167 @@ export function generateRoomMesses(scene, roomId = 'room1', count = 3, jsonPath 
         })
         .then(data => {
             const points = data[roomId];
-            if (!points || points.length < count) {
-                console.warn(`Not enough points in room: ${roomId}`);
+            if (!points) {
+                console.warn(`No points found for room: ${roomId}`);
                 return;
             }
 
-            const selected = pickRandomPositions(points, count);
+            const floorPoints = points.filter(p => p.location === "floor");
 
-            selected.forEach((posData, index) => {
-                const pos = new THREE.Vector3(posData.x, posData.y, posData.z);
-                const type = Math.random() < 0.5 ? 'stain' : 'paperBall'; // 50/50 chance
+            if (floorPoints.length < count) {
+                console.warn(`Not enough floor points for ${roomId}. Requested: ${count}, Found: ${floorPoints.length}`);
+                count = floorPoints.length;
+            }
+
+            const selected = pickRandomPositions(floorPoints, count);
+
+            selected.forEach((point, index) => {
+                const pos = new THREE.Vector3(
+                    point.position.x,
+                    point.position.y,
+                    point.position.z
+                );
+                const messTypes = ['stain', 'paperBall', 'dustBunny'];
+                const type = messTypes[Math.floor(Math.random() * messTypes.length)];
 
                 if (type === 'paperBall') {
-                    loadPaperBall(scene, pos);
+                    loadPaperBall(scene, pos, interactableObjects);
+                } else if (type === 'dustBunny') {
+                    const { group, proxy } = createDustBunny(pos, interactableObjects);
+                    scene.add(group);
+                    scene.add(proxy);
                 } else {
-                    scene.add(createStainMesh(pos));
+                    const stain = createStainMesh(pos, "floor", {}, interactableObjects);
+                    scene.add(stain);
                 }
 
-                console.log(`🧽 Mess ${index + 1}: ${type} at (${pos.x}, ${pos.y}, ${pos.z})`);
+                console.log(`🧽 ${type} placed on floor at (${pos.x}, ${pos.y}, ${pos.z})`);
             });
 
-            console.log(`✅ Generated ${count} messes in room: ${roomId}`);
+            console.log(`✅ Generated ${count} floor messes in room: ${roomId}`);
         })
         .catch(err => console.error("Error loading mess positions:", err));
 }
 
-/**
- * Main function: Generates 2 stains on each wall mesh found in the room data
- */
-export function generateStainsFromWallsJSON(scene, jsonPath = 'walls.json') {
+
+export function generateRoomWallMesses(
+    scene,
+    roomId = 'room1',
+    count = 3,
+    jsonPath = 'mess-positions.json',
+    interactableObjects = []
+) {
     fetch(jsonPath)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`Failed to load ${jsonPath}`);
-            }
-            return response.json();
+        .then(res => {
+            if (!res.ok) throw new Error(`Failed to load ${jsonPath}`);
+            return res.json();
         })
-        .then(wallsData => {
-            wallsData.forEach((wall, index) => {
-                const basePos = new THREE.Vector3(
-                    wall.position.x,
-                    wall.position.y,
-                    wall.position.z
+        .then(data => {
+            const points = data[roomId];
+            if (!points) {
+                console.warn(`No points found for room: ${roomId}`);
+                return;
+            }
+
+            const wallPoints = points.filter(p =>
+                p.location === "faceWall" || p.location === "sideWall"
+            );
+
+            if (wallPoints.length < count) {
+                console.warn(`Not enough wall points for ${roomId}. Requested: ${count}, Found: ${wallPoints.length}`);
+                count = wallPoints.length;
+            }
+
+            const selected = pickRandomPositions(wallPoints, count);
+
+            selected.forEach((point, index) => {
+                const pos = new THREE.Vector3(
+                    point.position.x,
+                    point.position.y,
+                    point.position.z
                 );
 
-                for (let i = 0; i < 2; i++) {
-                    const offset = new THREE.Vector3(
-                        (Math.random() - 0.5) * 1.2,
-                        (Math.random() - 0.5) * 1.2,
-                        (Math.random() - 0.5) * 0.1
-                    );
-                    const stainPos = basePos.clone().add(offset);
-                    const stain = createWallStainMesh(stainPos);
-                    scene.add(stain);
-                }
+                const stain = createStainMesh(pos, point.location, {}, interactableObjects);
+                scene.add(stain);
+
+                console.log(`🧱 Wall stain ${index + 1} at ${point.location}`, pos);
             });
 
-            console.log(`🧱 ${wallsData.length * 2} wall stains created from ${jsonPath}`);
+            console.log(`✅ Placed ${count} wall stains in room: ${roomId}`);
         })
-        .catch(err => {
-            console.error("❌ Error loading wall stain data:", err);
-        });
+        .catch(err => console.error("Error loading wall stains:", err));
 }
 
-export function generateHardcodedWallStains(scene) {
-    const wallPositions = [
-        new THREE.Vector3(5.95, 1.5, 2),
-        new THREE.Vector3(5.95, 1.5, 11.9),
-        new THREE.Vector3(0, 1.5, 6.95),
-        new THREE.Vector3(11.9, 1.5, 6.95)
-    ];
+export function generateRoomObjectMesses(scene, roomId, count = 1, jsonPath, interactables) {
+    if (roomId === "kitchen") {
+        generateKitchenMess(scene, jsonPath, interactables); // kitchen is custom
+    } else {
+        generateGenericObjectMesses(scene, roomId, count, jsonPath, interactables);
+    }
+}
 
-    wallPositions.forEach((wallPos, i) => {
-        for (let j = 0; j < 2; j++) {
-            const offset = new THREE.Vector3(
-                (Math.random() - 0.5) * 1.2,
-                (Math.random() - 0.5) * 1.2,
-                (Math.random() - 0.5) * 0.1
-            );
-            const stainPos = wallPos.clone().add(offset);
-            const stain = createWallStainMesh(stainPos);
-            scene.add(stain);
+
+async function generateGenericObjectMesses(scene, roomId, count = 1, jsonPath, interactables) {
+    const positions = await fetch(jsonPath).then(r => r.json());
+    const allPoints = positions[roomId]?.filter(p => p.location === "object") || [];
+
+    if (allPoints.length < count) {
+        console.warn(`⚠️ Requested ${count} object messes, but only ${allPoints.length} available.`);
+        count = allPoints.length;
+    }
+
+    const selected = pickRandomPositions(allPoints, count);
+
+    selected.forEach(point => {
+        const pos = new THREE.Vector3(point.position.x, point.position.y, point.position.z);
+        const subtype = point.subtype;
+        if (subtype) {
+            loadSwappableMess(scene, subtype, pos, interactables);
         }
     });
 
-    console.log(`🧱 Hardcoded: 8 wall stains created`);
+    console.log(`✅ Placed ${selected.length} object messes for room: '${roomId}'`);
+}
+
+async function generateKitchenMess(scene, jsonPath, interactables) {
+    const positions = await fetch(jsonPath).then(r => r.json());
+    const kitchenPoints = positions["kitchen"] || [];
+
+    const kitchenTopPoints = kitchenPoints.filter(p => p.location === "kitchen-top");
+    const tableTopPoints = kitchenPoints.filter(p => p.location === "table-top");
+
+    if (kitchenTopPoints.length < 2) {
+        console.warn("⚠️ Not enough kitchen-top points.");
+        return;
+    }
+    if (tableTopPoints.length < 1) {
+        console.warn("⚠️ No table-top point for stack.");
+        return;
+    }
+
+    // Generate 2 messes (random from pan/plate/bowl) on kitchen-top points
+    const messOptions = ["pan", "plate", "bowl"];
+    for (let i = 0; i < 2; i++) {
+        const subtype = messOptions[Math.floor(Math.random() * messOptions.length)];
+        const pos = new THREE.Vector3(
+            kitchenTopPoints[i].position.x,
+            kitchenTopPoints[i].position.y,
+            kitchenTopPoints[i].position.z
+        );
+        loadSwappableMess(scene, subtype, pos, interactables);
+    }
+
+    // Generate 1 stack mess (plate_stack or bowl_stack) on table-top
+    const stackOptions = ["plate_stack", "bowl_stack"];
+    const stackSubtype = stackOptions[Math.floor(Math.random() * stackOptions.length)];
+    const stackPos = new THREE.Vector3(
+        tableTopPoints[0].position.x,
+        tableTopPoints[0].position.y,
+        tableTopPoints[0].position.z
+    );
+    loadSwappableMess(scene, stackSubtype, stackPos, interactables);
+
+    console.log("✅ Generated kitchen messes.");
 }
 
 // ----- SHADERS ------
