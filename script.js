@@ -5,7 +5,9 @@ import GUI from "lil-gui";
 import { enableCoordinatePicking } from "./cordinate-picker.js";
 import { generateRoomMesses, createDustBunny } from "./generate-mess.js";
 
-let scene, camera, renderer, controls;
+let scene, camera, renderer, controls, mixer;
+const animationActions = {};
+let activeAction;
 let currentHandsModel; // Renamed from boxModel
 let handsGuiFolder; // To manage the GUI folder for hands
 let gui;
@@ -15,9 +17,17 @@ let interactableObjects = []; // To store objects that can be interacted with
 let raycaster; // For detecting what the camera is looking at
 let highlightedObject = null; // To keep track of the currently highlighted object
 const INTERACTION_DISTANCE = 7; // Max distance to interact/highlight
+const INTERACTION_DURATION = 5000; // 5 seconds in milliseconds
+const ANIMATION_FADE_DURATION = 0.2; // Duration for animation crossfading
+
+// Interaction state variables
+let isInteracting = false;
+let interactionStartTime = 0;
+let interactionTarget = null;
+let progressBarContainer, progressBarFill;
 
 // Player constants
-const PLAYER_HALF_HEIGHT = 0.9; // Player is 1.8 units tall
+const PLAYER_HALF_HEIGHT = 2; // Player is 1.8 units tall
 
 // Reusable Box3 instances for AABB collision
 let playerWorldAABB = new THREE.Box3();
@@ -215,7 +225,11 @@ function loadPositions(path) {
         for (const room of roomObjects) {
           scene.add(room);
           room.traverse((child) => {
-            if (child instanceof THREE.Mesh && child.name.includes("Wall")) {
+            if (
+              child instanceof THREE.Mesh &&
+              child.name.includes("Wall") &&
+              !child.name === "Door"
+            ) {
               collidableObjects.push(child);
             }
           });
@@ -230,8 +244,6 @@ function loadPositions(path) {
           scene.add(placeableObject);
           collidableObjects.push(placeableObject);
         }
-
-        console.log("placeableObjects", placeableObjects.length);
       });
 
       scene.add(new THREE.AmbientLight(0xffffff, 0.8));
@@ -390,6 +402,7 @@ function loadHandsModel(modelPath) {
     camera.remove(currentHandsModel);
     currentHandsModel = null;
   }
+
   if (handsGuiFolder) {
     handsGuiFolder.destroy();
     handsGuiFolder = null;
@@ -405,8 +418,9 @@ function loadHandsModel(modelPath) {
       camera.add(currentHandsModel);
 
       // Default position and rotation, adjust as needed
-      currentHandsModel.position.set(0, -0.36, -0.36);
-      currentHandsModel.rotation.set(1, Math.PI, 0); // Example rotation
+      currentHandsModel.position.set(0, -1.72, -0.83);
+      currentHandsModel.rotation.set(0.428, -Math.PI, 0); // Example rotation
+      currentHandsModel.scale.set(1.1, 1.1, 1.1);
 
       if (modelPath === "second_arms.glb") {
         currentHandsModel.scale.set(0.01, 0.01, 0.01); // Adjust scale for second model
@@ -415,9 +429,27 @@ function loadHandsModel(modelPath) {
       currentHandsModel.traverse(function (child) {
         if (child.isMesh) {
           child.frustumCulled = false;
+          child.castShadow = true;
         }
       });
       currentHandsModel.frustumCulled = false;
+
+      // Initialize AnimationMixer
+      mixer = new THREE.AnimationMixer(currentHandsModel);
+
+      // Store all animations
+      gltf.animations.forEach((clip) => {
+        const action = mixer.clipAction(clip);
+        animationActions[clip.name] = action;
+      });
+
+      console.log(animationActions, "animationActions");
+
+      // Play the first animation by default, or an 'idle' animation
+      if (gltf.animations.length > 0) {
+        activeAction = animationActions["Walk"]; // Or choose a specific "idle" animation
+        activeAction.play();
+      }
 
       console.log(`GLTF model '${modelPath}' loaded and added to camera.`);
 
@@ -466,6 +498,69 @@ function loadHandsModel(modelPath) {
   );
 }
 
+function playTargetAnimation(
+  animationName,
+  loopOnce = false,
+  crossfadeDuration = ANIMATION_FADE_DURATION
+) {
+  if (!mixer || !animationActions[animationName]) {
+    console.warn(`Animation "${animationName}" not found or mixer not ready.`);
+    return;
+  }
+
+  const targetAction = animationActions[animationName];
+
+  if (activeAction && activeAction !== targetAction) {
+    activeAction.fadeOut(crossfadeDuration);
+  }
+
+  targetAction.reset();
+  if (loopOnce) {
+    targetAction.setLoop(THREE.LoopOnce, 1);
+    targetAction.clampWhenFinished = true;
+  } else {
+    targetAction.setLoop(THREE.LoopRepeat);
+  }
+  targetAction.fadeIn(crossfadeDuration).play();
+  activeAction = targetAction;
+}
+
+function switchToDefaultAnimation(crossfadeDuration = ANIMATION_FADE_DURATION) {
+  // Assuming "Walk" is the default animation
+  if (!mixer || !animationActions["Walk"]) {
+    console.warn("Default animation 'Walk' not found or mixer not ready.");
+    // Fallback or ensure activeAction is at least stopped if it's a one-shot
+    if (activeAction && activeAction.loop === THREE.LoopOnce) {
+      activeAction.fadeOut(crossfadeDuration);
+      // Optionally, try to find *any* looping animation if "Walk" is missing
+    }
+    return;
+  }
+
+  console.log(animationActions, "animationActions");
+
+  const walkAction = animationActions["Walk"];
+
+  if (activeAction && activeAction !== walkAction) {
+    activeAction.fadeOut(crossfadeDuration);
+  }
+
+  walkAction.reset().setLoop(THREE.LoopRepeat).fadeIn(crossfadeDuration).play();
+  activeAction = walkAction;
+}
+
+function cancelInteraction() {
+  isInteracting = false;
+  interactionTarget = null;
+  if (progressBarContainer) {
+    progressBarContainer.style.display = "none";
+  }
+  if (progressBarFill) {
+    progressBarFill.style.width = "0%";
+  }
+  switchToDefaultAnimation();
+}
+
 function init() {
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xcccccc);
@@ -507,7 +602,28 @@ function init() {
     .name("Min Gap to Wall");
   gui.add(settings, "armProtrusion", 0.0, 1.0, 0.01).name("Arm Protrusion");
 
-  // setupRooms();
+  // Progress Bar UI
+  progressBarContainer = document.createElement("div");
+  progressBarContainer.style.position = "fixed";
+  progressBarContainer.style.bottom = "20%";
+  progressBarContainer.style.left = "50%";
+  progressBarContainer.style.transform = "translateX(-50%)";
+  progressBarContainer.style.width = "200px";
+  progressBarContainer.style.height = "20px";
+  progressBarContainer.style.backgroundColor = "rgba(0, 0, 0, 0.5)";
+  progressBarContainer.style.border = "1px solid #fff";
+  progressBarContainer.style.borderRadius = "5px";
+  progressBarContainer.style.display = "none"; // Hidden by default
+  progressBarContainer.style.zIndex = "101";
+  document.body.appendChild(progressBarContainer);
+
+  progressBarFill = document.createElement("div");
+  progressBarFill.style.width = "0%";
+  progressBarFill.style.height = "100%";
+  progressBarFill.style.backgroundColor = "#4CAF50"; // Green
+  progressBarFill.style.borderRadius = "4px";
+  progressBarContainer.appendChild(progressBarFill);
+
   loadHouse();
   setupInteractableObjects();
 
@@ -536,6 +652,35 @@ function init() {
 
   document.addEventListener("keydown", onKeyDown);
   document.addEventListener("keyup", onKeyUp);
+
+  document.addEventListener("mousedown", (event) => {
+    if (
+      event.button === 0 &&
+      controls.isLocked &&
+      highlightedObject &&
+      !isInteracting
+    ) {
+      isInteracting = true;
+      interactionStartTime = performance.now();
+      interactionTarget = highlightedObject;
+      progressBarContainer.style.display = "block";
+      progressBarFill.style.width = "0%";
+      playTargetAnimation("Sprint_Type_1", true); // Play "Take" animation once
+      event.stopPropagation();
+    }
+  });
+
+  document.addEventListener("mouseup", (event) => {
+    if (event.button === 0 && isInteracting) {
+      cancelInteraction();
+    }
+  });
+
+  controls.addEventListener("unlock", () => {
+    if (isInteracting) {
+      cancelInteraction();
+    }
+  });
 
   let pickingMode = { value: false }; // Shared reactive reference
 
@@ -616,6 +761,10 @@ function animate() {
 
   const delta = clock.getDelta();
 
+  if (mixer) {
+    mixer.update(delta);
+  }
+
   if (controls.isLocked === true) {
     raycaster.setFromCamera({ x: 0, y: 0 }, camera);
     raycaster.far = INTERACTION_DISTANCE;
@@ -629,15 +778,46 @@ function animate() {
       }
     }
 
-    if (highlightedObject && highlightedObject !== currentTarget) {
+    if (
+      highlightedObject &&
+      highlightedObject !== currentTarget &&
+      !isInteracting
+    ) {
       unhighlightObject(highlightedObject);
       highlightedObject = null;
     }
 
-    if (currentTarget && currentTarget !== highlightedObject) {
+    if (
+      currentTarget &&
+      currentTarget !== highlightedObject &&
+      !isInteracting
+    ) {
       highlightObject(currentTarget);
       highlightedObject = currentTarget;
       handleObjectInteraction(currentTarget.userData.object_type);
+    } else if (!currentTarget && highlightedObject && !isInteracting) {
+      unhighlightObject(highlightedObject);
+      highlightedObject = null;
+    }
+
+    if (isInteracting) {
+      if (!controls.isLocked || highlightedObject !== interactionTarget) {
+        cancelInteraction();
+      } else {
+        const elapsedTime = performance.now() - interactionStartTime;
+        const progress = Math.min(elapsedTime / INTERACTION_DURATION, 1);
+        progressBarFill.style.width = progress * 100 + "%";
+
+        if (progress >= 1) {
+          console.log(
+            "Interaction complete with:",
+            interactionTarget.userData.object_type
+          );
+          // Note: cancelInteraction() will call switchToDefaultAnimation()
+          cancelInteraction();
+          highlightedObject = null;
+        }
+      }
     }
 
     const speedDelta = settings.moveSpeed * delta;
@@ -667,9 +847,12 @@ function animate() {
       }
     }
   } else {
-    if (highlightedObject) {
+    if (highlightedObject && !isInteracting) {
       unhighlightObject(highlightedObject);
       highlightedObject = null;
+    }
+    if (isInteracting) {
+      cancelInteraction();
     }
   }
 
