@@ -13,17 +13,19 @@
   </head>
 
   <body>
-    <div
-      id="container"
-      style="position: fixed; left: 0; top: 0; right: 0; bottom: 0"
-    >
-      <div
-        id="tools"
-        style="position: fixed; left: 0; top: 0; background-color: #000"
-      >
-        <button id="room-tool">Room Tool</button>
-      </div>
-    </div>
-    <script type="module" src="js/EnvironmentBuilder/index.ts"></script>
+    <!-- Import map for Three.js and its addons -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.176.0/build/three.module.js",
+          "three/examples/jsm/controls/PointerLockControls.js": "https://unpkg.com/three@0.176.0/examples/jsm/controls/PointerLockControls.js",
+          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.176.0/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.176.0/examples/jsm/loaders/GLTFLoader.js",
+          "lil-gui": "https://unpkg.com/lil-gui@0.19.1/dist/lil-gui.esm.js"
+        }
+      }
+    </script>
+
+    <script type="module" src="script.js"></script>
   </body>
 </html>
