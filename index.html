@@ -2,28 +2,76 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- <link rel="stylesheet" href="css/layout.css" /> -->
-    <title>House Building Simulator</title>
-    <meta
-      name="model-attribution"
-      content="3D models from Furniture Pack by Quaternius via Poly Pizza"
-    />
+    <title>CG House Cleaning - FPS Prototype</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+        background-color: #000;
+      }
+
+      canvas {
+        display: block;
+      }
+    </style>
   </head>
 
   <body>
+    <!-- Import map for Three.js and its addons -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.176.0/build/three.module.js",
+          "three/examples/jsm/controls/PointerLockControls.js": "https://unpkg.com/three@0.176.0/examples/jsm/controls/PointerLockControls.js",
+          "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.176.0/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.176.0/examples/jsm/loaders/GLTFLoader.js",
+          "lil-gui": "https://unpkg.com/lil-gui@0.19.1/dist/lil-gui.esm.js"
+        }
+      }
+    </script>
+
+    <script type="module" src="script.js"></script>
     <div
-      id="container"
-      style="position: fixed; left: 0; top: 0; right: 0; bottom: 0"
+      id="model-controls"
+      style="
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 10px;
+        border-radius: 5px;
+        color: white;
+        font-family: Arial, sans-serif;
+      "
     >
-      <div
-        id="tools"
-        style="position: fixed; left: 0; top: 0; background-color: #000"
+      <p style="margin: 0 0 5px 0">Select Arms Model:</p>
+      <button
+        id="showFirstArms"
+        style="
+          margin-right: 5px;
+          padding: 5px 10px;
+          border: none;
+          background-color: #4caf50;
+          color: white;
+          cursor: pointer;
+        "
       >
-        <button id="room-tool">Room Tool</button>
-      </div>
+        Arms 1
+      </button>
+      <button
+        id="showSecondArms"
+        style="
+          padding: 5px 10px;
+          border: none;
+          background-color: #008cba;
+          color: white;
+          cursor: pointer;
+        "
+      >
+        Arms 2
+      </button>
     </div>
-    <script type="module" src="js/EnvironmentBuilder/index.ts"></script>
   </body>
 </html>
