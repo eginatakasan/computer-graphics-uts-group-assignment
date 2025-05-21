@@ -280,13 +280,17 @@ export class ModelLoader {
                     return;
                   }
 
-                  if (c.name === "room") {
+                  if (c.name.includes("[Room]")) {
                     roomObjects.push(c);
                     return;
                   }
 
+                  if (c.name.includes("[Door]")) {
+                    roomObjects.push(c);
+                    return;
+                  }
 
-                  if (c.name === "placeableObject") {
+                  if (c.name.includes("[placeableObject]")) {
                     placeableObjects.push(c);
                   }
 

@@ -10,6 +10,7 @@ import { DoorPlacer } from "./tools/DoorPlacer";
 import { TextureManager } from "./tools/TextureManager";
 import { UIManager } from "./UIManager";
 import { EventManager } from "./EventManager";
+import { BoxPlacer } from "./tools/BoxPlacer";
 
 export class EnvironmentBuilder {
   private container: HTMLElement;
@@ -20,6 +21,7 @@ export class EnvironmentBuilder {
   private roomBuilder: RoomBuilder;
   private doorPlacer: DoorPlacer;
   private textureManager: TextureManager;
+  private boxPlacer: BoxPlacer;
   private uiManager: UIManager;
   private eventManager: EventManager;
   private controller: Controller;
@@ -45,6 +47,8 @@ export class EnvironmentBuilder {
     this.doorPlacer = new DoorPlacer(this.stateManager);
 
     this.textureManager = new TextureManager(this.stateManager);
+
+    this.boxPlacer = new BoxPlacer(this.stateManager, this.commandManager);
 
     // Initialize UI and event handling
     this.uiManager = new UIManager(
@@ -87,6 +91,7 @@ export class EnvironmentBuilder {
     this.eventManager.setStateManager(this.stateManager);
     this.eventManager.setCommandManager(this.commandManager);
     this.eventManager.setUIManager(this.uiManager);
+    this.eventManager.setBoxPlacer(this.boxPlacer);
   }
 
   private setupEventListeners(): void {
@@ -150,6 +155,14 @@ export class EnvironmentBuilder {
       } else {
         this.eventManager.removeDoorPlacementHandlers();
         this.doorPlacer.cleanupDoorPlacement();
+      }
+    });
+
+    this.stateManager.subscribe("boxPlacementActive", (active: boolean) => {
+      if (active) {
+        this.eventManager.setupBoxPlacementHandlers();
+      } else {
+        this.eventManager.removeBoxPlacementHandlers();
       }
     });
 

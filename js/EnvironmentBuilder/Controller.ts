@@ -38,6 +38,11 @@ export class Controller {
     stateManager.subscribe("selectedObject", (object) => {
       this.handleObjectSelection(object);
     });
+
+    // Subscribe to placed objects changes
+    stateManager.subscribe("placedObjectsChanged", (objects) => {
+      this.dragControls.objects = objects;
+    });
   }
 
   private setupUndoListener(): void {
