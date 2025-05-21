@@ -98,11 +98,50 @@
         },
         {
             "position": {
-                "x": 16.34,
-                "y": 0.88,
-                "z": 8.85
+                "x": 17.16,
+                "y": 0.91,
+                "z": 7.11
             },
-            "location": "object"
+            "location": "object",
+            "subtype": "clothes"
+        }
+    ],
+    "kitchen": [
+        {
+            "position": {
+                "x": -5.08,
+                "y": 1.10,
+                "z": -7.47
+            },
+            "location": "kitchen-top",
+            "subtype": "kitchen-top"
+        },
+        {
+            "position": {
+                "x": -5.04,
+                "y": 1.10,
+                "z": -4.93
+            },
+            "location": "kitchen-top",
+            "subtype": "kitchen-top"
+        },
+        {
+            "position": {
+                "x": -4.60,
+                "y": 1.10,
+                "z": -6.88
+            },
+            "location": "kitchen-top",
+            "subtype": "kitchen-top"
+        },
+        {
+            "position": {
+                "x": 6.04,
+                "y": 1.33,
+                "z": -7.01
+            },
+            "location": "table-top",
+            "subtype": "table-top"
         }
     ]
 }

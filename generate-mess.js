@@ -26,6 +26,7 @@ export function loadPaperBall(scene, position, interactables = []) {
                 child.userData.type = 'paperBall';
                 child.userData.isInteractable = true;
                 child.userData.object_type = 'paperBall';
+                child.userData.ownerGroup = paperGroup;
 
                 interactables.push(child); // ✅ Now mesh can be interacted with
             }
@@ -187,6 +188,44 @@ export function loadClothesMess(scene, position, interactables = []) {
     });
 }
 
+export async function loadSwappableMess(scene, subtype, position, interactables = []) {
+    const config = await fetch('mess-models.json').then(res => res.json());
+    const meta = config[subtype];
+
+    if (!meta || !meta.dirtyModel) {
+        console.warn(`⚠️ No dirtyModel for subtype '${subtype}'`);
+        return;
+    }
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load(meta.dirtyModel, (gltf) => {
+        const group = gltf.scene;
+        group.position.copy(position);
+        group.scale.setScalar(meta.dirtyScale || 0.5);
+        group.rotation.y = Math.random() * Math.PI * 2;
+
+        group.traverse((child) => {
+            if (child.isMesh) {
+                child.userData = {
+                    isMess: true,
+                    isInteractable: true,
+                    object_type: 'swappable',
+                    subtype,
+                    modelSwap: meta.cleanModel || null,
+                    position: position.clone(),
+                    dirtyScale: meta.dirtyScale,
+                    cleanScale: meta.cleanScale,
+                    parentGroup: group
+                };
+                interactables.push(child);
+            }
+        });
+
+        scene.add(group);
+    });
+}
+
+
 
 // ------ Main export -------
 
@@ -302,50 +341,77 @@ export function generateRoomWallMesses(
         .catch(err => console.error("Error loading wall stains:", err));
 }
 
-export function generateRoomObjectMesses(
-    scene,
-    roomId = 'room1',
-    count = 1,
-    jsonPath = 'mess-positions.json',
-    interactableObjects = []
-) {
-    fetch(jsonPath)
-        .then(res => {
-            if (!res.ok) throw new Error(`Failed to load ${jsonPath}`);
-            return res.json();
-        })
-        .then(data => {
-            const points = data[roomId];
-            if (!points) {
-                console.warn(`No points found for room: ${roomId}`);
-                return;
-            }
-
-            const objectPoints = points.filter(p => p.location === "object");
-
-            if (objectPoints.length < count) {
-                console.warn(`Not enough object mess points for ${roomId}. Requested: ${count}, Found: ${objectPoints.length}`);
-                count = objectPoints.length;
-            }
-
-            const selected = pickRandomPositions(objectPoints, count);
-
-            selected.forEach((point, index) => {
-                const pos = new THREE.Vector3(
-                    point.position.x,
-                    point.position.y,
-                    point.position.z
-                );
-
-                loadClothesMess(scene, pos, interactableObjects);
-                console.log(`👕 Clothes mess ${index + 1} added at object (${pos.x}, ${pos.y}, ${pos.z})`);
-            });
-
-            console.log(`✅ Placed ${count} object messes (clothes) in room: ${roomId}`);
-        })
-        .catch(err => console.error("Error loading object messes:", err));
+export function generateRoomObjectMesses(scene, roomId, count = 1, jsonPath, interactables) {
+    if (roomId === "kitchen") {
+        generateKitchenMess(scene, jsonPath, interactables); // kitchen is custom
+    } else {
+        generateGenericObjectMesses(scene, roomId, count, jsonPath, interactables);
+    }
 }
 
+
+async function generateGenericObjectMesses(scene, roomId, count = 1, jsonPath, interactables) {
+    const positions = await fetch(jsonPath).then(r => r.json());
+    const allPoints = positions[roomId]?.filter(p => p.location === "object") || [];
+
+    if (allPoints.length < count) {
+        console.warn(`⚠️ Requested ${count} object messes, but only ${allPoints.length} available.`);
+        count = allPoints.length;
+    }
+
+    const selected = pickRandomPositions(allPoints, count);
+
+    selected.forEach(point => {
+        const pos = new THREE.Vector3(point.position.x, point.position.y, point.position.z);
+        const subtype = point.subtype;
+        if (subtype) {
+            loadSwappableMess(scene, subtype, pos, interactables);
+        }
+    });
+
+    console.log(`✅ Placed ${selected.length} object messes for room: '${roomId}'`);
+}
+
+async function generateKitchenMess(scene, jsonPath, interactables) {
+    const positions = await fetch(jsonPath).then(r => r.json());
+    const kitchenPoints = positions["kitchen"] || [];
+
+    const kitchenTopPoints = kitchenPoints.filter(p => p.location === "kitchen-top");
+    const tableTopPoints = kitchenPoints.filter(p => p.location === "table-top");
+
+    if (kitchenTopPoints.length < 2) {
+        console.warn("⚠️ Not enough kitchen-top points.");
+        return;
+    }
+    if (tableTopPoints.length < 1) {
+        console.warn("⚠️ No table-top point for stack.");
+        return;
+    }
+
+    // Generate 2 messes (random from pan/plate/bowl) on kitchen-top points
+    const messOptions = ["pan", "plate", "bowl"];
+    for (let i = 0; i < 2; i++) {
+        const subtype = messOptions[Math.floor(Math.random() * messOptions.length)];
+        const pos = new THREE.Vector3(
+            kitchenTopPoints[i].position.x,
+            kitchenTopPoints[i].position.y,
+            kitchenTopPoints[i].position.z
+        );
+        loadSwappableMess(scene, subtype, pos, interactables);
+    }
+
+    // Generate 1 stack mess (plate_stack or bowl_stack) on table-top
+    const stackOptions = ["plate_stack", "bowl_stack"];
+    const stackSubtype = stackOptions[Math.floor(Math.random() * stackOptions.length)];
+    const stackPos = new THREE.Vector3(
+        tableTopPoints[0].position.x,
+        tableTopPoints[0].position.y,
+        tableTopPoints[0].position.z
+    );
+    loadSwappableMess(scene, stackSubtype, stackPos, interactables);
+
+    console.log("✅ Generated kitchen messes.");
+}
 
 // ----- SHADERS ------
 
