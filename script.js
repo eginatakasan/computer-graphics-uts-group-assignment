@@ -50,146 +50,19 @@ const settings = {
   armProtrusion: 0.35, // How far arms stick out. NOTE: Not used in current AABB collision logic.
 };
 
-// Store the path of the currently active model
-let activeModelPath = "";
-let previousActiveModelPath = ""; // To revert on load failure
-
-// Button style constants
-const ACTIVE_BUTTON_STYLE_ARMS1 = {
-  backgroundColor: "#2e7d32",
-  fontWeight: "bold",
-  border: "2px solid white",
-};
-const INACTIVE_BUTTON_STYLE_ARMS1 = {
-  backgroundColor: "#4caf50",
-  fontWeight: "normal",
-  border: "none",
-};
-const ACTIVE_BUTTON_STYLE_ARMS2 = {
-  backgroundColor: "#006080",
-  fontWeight: "bold",
-  border: "2px solid white",
-};
-const INACTIVE_BUTTON_STYLE_ARMS2 = {
-  backgroundColor: "#008cba",
-  fontWeight: "normal",
-  border: "none",
-};
-
 init();
 animate();
 
-// Helper function to create an interactable box
-function createInteractableBox(size, color, position, objectType) {
-  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
-  const material = new THREE.MeshLambertMaterial({ color: color });
-  const box = new THREE.Mesh(geometry, material);
-  box.position.copy(position);
-  box.userData.object_type = objectType;
-  box.userData.isInteractable = true;
-  box.userData.originalEmissive = material.emissive.getHex(); // Store original emissive
-  scene.add(box);
-  interactableObjects.push(box);
-  collidableObjects.push(box); // Also make them collidable
-  return box;
-}
+function setupInteractableObjects() {}
 
-// Helper function to create an interactable sphere
-function createInteractableSphere(radius, color, position, objectType) {
-  const geometry = new THREE.SphereGeometry(radius, 32, 16);
-  const material = new THREE.MeshLambertMaterial({ color: color });
-  const sphere = new THREE.Mesh(geometry, material);
-  sphere.position.copy(position);
-  sphere.userData.object_type = objectType;
-  sphere.userData.isInteractable = true;
-  sphere.userData.originalEmissive = material.emissive.getHex();
-  scene.add(sphere);
-  interactableObjects.push(sphere);
-  collidableObjects.push(sphere); // Also make them collidable
-  return sphere;
-}
+function highlightObject(object) {}
 
-function setupInteractableObjects() {
-  // Room 1 is centered around Z = -roomSize / 2 = -5
-  // Floor is at Y = 0
-  createInteractableBox(
-    new THREE.Vector3(0.5, 0.5, 0.5), // size
-    0x00ff00, // Green color
-    new THREE.Vector3(2, 0.25, -3), // position (y = height/2)
-    "health_pack" // object_type
-  );
-  createInteractableSphere(
-    0.3, // radius
-    0xff0000, // Red color
-    new THREE.Vector3(-2, 0.3, -4), // position (y = radius)
-    "ammo_box" // object_type
-  );
-
-  // Room 2 is centered around Z = roomSize / 2 = 5
-  createInteractableBox(
-    new THREE.Vector3(0.4, 0.8, 0.4), // size
-    0x0000ff, // Blue color
-    new THREE.Vector3(1, 0.4, 3.5), // position
-    "quest_item_A" // object_type
-  );
-  createInteractableSphere(
-    0.25, // radius
-    0xffff00, // Yellow color
-    new THREE.Vector3(-1.5, 0.25, 4.5), // position
-    "info_panel" // object_type
-  );
-}
-
-function highlightObject(object) {
-  if (object && object.material && object.material.emissive) {
-    const isSphere = object.geometry instanceof THREE.SphereGeometry;
-    const isBox = object.geometry instanceof THREE.BoxGeometry;
-
-    const conditionForWhiteGlow =
-      (activeModelPath === "fp_arms.glb" && isSphere) ||
-      (activeModelPath === "second_arms.glb" && isBox);
-
-    if (conditionForWhiteGlow) {
-      object.material.emissive.setHex(WHITE_GLOW);
-    } else {
-      object.material.emissive.setHex(RED_GLOW);
-    }
-  }
-}
-
-function unhighlightObject(object) {
-  if (object && object.material && object.material.emissive) {
-    object.material.emissive.setHex(
-      object.userData.originalEmissive || 0x000000
-    );
-  }
-}
+function unhighlightObject(object) {}
 
 function handleObjectInteraction(objectType) {
   // This function is called when an interactable object is being looked at.
   // Add specific actions based on objectType here.
   console.log("Player is looking at:", objectType);
-}
-
-function createWall(width, height, depth, color) {
-  const geometry = new THREE.BoxGeometry(width, height, depth);
-  const material = new THREE.MeshLambertMaterial({ color: color });
-  const wall = new THREE.Mesh(geometry, material);
-  scene.add(wall);
-  collidableObjects.push(wall);
-  return wall;
-}
-
-function createFloor(width, depth, color) {
-  const geometry = new THREE.PlaneGeometry(width, depth);
-  const material = new THREE.MeshLambertMaterial({
-    color: color,
-    side: THREE.DoubleSide,
-  });
-  const floor = new THREE.Mesh(geometry, material);
-  floor.rotation.x = -Math.PI / 2; // Rotate to be horizontal
-  scene.add(floor);
-  return floor;
 }
 
 function loadPositions(path) {
@@ -225,11 +98,7 @@ function loadPositions(path) {
         for (const room of roomObjects) {
           scene.add(room);
           room.traverse((child) => {
-            if (
-              child instanceof THREE.Mesh &&
-              child.name.includes("Wall") &&
-              !child.name === "Door"
-            ) {
+            if (child instanceof THREE.Mesh && child.name.includes("Wall")) {
               collidableObjects.push(child);
             }
           });
@@ -238,6 +107,13 @@ function loadPositions(path) {
         for (const door of doorObjects) {
           scene.add(door);
           antiCollidableObjects.push(door);
+
+          door.traverse((child) => {
+            if (child.isMesh && child.material) {
+              child.material.transparent = true; // You'll likely want to set this to true for opacity to work as expected
+              child.material.opacity = 0; // Adjust opacity as needed (0.0 to 1.0)
+            }
+          });
         }
 
         for (const placeableObject of placeableObjects) {
@@ -265,151 +141,7 @@ function loadHouse() {
   scene.add(bunny);
 }
 
-function setupRooms() {
-  const roomSize = 10;
-  const wallHeight = 3;
-  const wallThickness = 0.2;
-  const doorWidth = 2;
-  const doorHeight = 2.2;
-
-  const wallColor1 = 0xffaaaa;
-  const wallColor2 = 0xaaffaa;
-  const sharedWallColor = 0xaaaaff;
-  const wallColor3 = 0xffffaa;
-  const wallColor4 = 0xffaaff;
-
-  const floorColor = 0x888888;
-
-  const room1ZOffset = -roomSize / 2;
-
-  const floor1 = createFloor(roomSize, roomSize, floorColor);
-  floor1.position.set(0, 0, room1ZOffset);
-
-  const wall1Back = createWall(
-    roomSize + wallThickness,
-    wallHeight,
-    wallThickness,
-    wallColor1
-  );
-  wall1Back.position.set(0, wallHeight / 2, room1ZOffset - roomSize / 2);
-
-  const wall1Left = createWall(wallThickness, wallHeight, roomSize, wallColor2);
-  wall1Left.position.set(-roomSize / 2, wallHeight / 2, room1ZOffset);
-
-  const wall1Right = createWall(
-    wallThickness,
-    wallHeight,
-    roomSize,
-    wallColor2
-  );
-  wall1Right.position.set(roomSize / 2, wallHeight / 2, room1ZOffset);
-
-  const frontWall1Part1Width = (roomSize - doorWidth) / 2;
-  const wall1FrontLeft = createWall(
-    frontWall1Part1Width,
-    wallHeight,
-    wallThickness,
-    sharedWallColor
-  );
-  wall1FrontLeft.position.set(
-    -(doorWidth / 2 + frontWall1Part1Width / 2),
-    wallHeight / 2,
-    room1ZOffset + roomSize / 2 - wallThickness / 2
-  );
-
-  const wall1FrontRight = createWall(
-    frontWall1Part1Width,
-    wallHeight,
-    wallThickness,
-    sharedWallColor
-  );
-  wall1FrontRight.position.set(
-    doorWidth / 2 + frontWall1Part1Width / 2,
-    wallHeight / 2,
-    room1ZOffset + roomSize / 2 - wallThickness / 2
-  );
-
-  const wall1FrontAboveDoorHeight = wallHeight - doorHeight;
-  const wall1FrontAboveDoor = createWall(
-    doorWidth,
-    wall1FrontAboveDoorHeight,
-    wallThickness,
-    sharedWallColor
-  );
-  wall1FrontAboveDoor.position.set(
-    0,
-    doorHeight + wall1FrontAboveDoorHeight / 2,
-    room1ZOffset + roomSize / 2 - wallThickness / 2
-  );
-
-  const room2ZOffset = roomSize / 2;
-
-  const floor2 = createFloor(roomSize, roomSize, floorColor);
-  floor2.position.set(0, 0, room2ZOffset);
-
-  const wall2Front = createWall(
-    roomSize + wallThickness,
-    wallHeight,
-    wallThickness,
-    wallColor4
-  );
-  wall2Front.position.set(0, wallHeight / 2, room2ZOffset + roomSize / 2);
-
-  const wall2Left = createWall(wallThickness, wallHeight, roomSize, wallColor3);
-  wall2Left.position.set(-roomSize / 2, wallHeight / 2, room2ZOffset);
-
-  const wall2Right = createWall(
-    wallThickness,
-    wallHeight,
-    roomSize,
-    wallColor3
-  );
-  wall2Right.position.set(roomSize / 2, wallHeight / 2, room2ZOffset);
-}
-
-function updateArmSelectionUI() {
-  const btnArms1 = document.getElementById("showFirstArms");
-  const btnArms2 = document.getElementById("showSecondArms");
-
-  if (!btnArms1 || !btnArms2) {
-    console.warn("Arm selection buttons not found in DOM for UI update.");
-    return;
-  }
-
-  // Apply inactive styles by default
-  Object.assign(btnArms1.style, INACTIVE_BUTTON_STYLE_ARMS1);
-  Object.assign(btnArms2.style, INACTIVE_BUTTON_STYLE_ARMS2);
-
-  if (activeModelPath === "fp_arms.glb") {
-    Object.assign(btnArms1.style, ACTIVE_BUTTON_STYLE_ARMS1);
-  } else if (activeModelPath === "second_arms.glb") {
-    Object.assign(btnArms2.style, ACTIVE_BUTTON_STYLE_ARMS2);
-  }
-}
-
 function loadHandsModel(modelPath) {
-  // If the requested model is already active and loaded, do nothing further.
-  if (activeModelPath === modelPath && currentHandsModel) {
-    updateArmSelectionUI(); // Ensure UI is consistent
-    return;
-  }
-
-  previousActiveModelPath = activeModelPath; // Store current before attempting to load new
-  activeModelPath = modelPath; // Tentatively set new active path
-
-  // Remove existing model and its GUI folder if they exist
-  if (currentHandsModel) {
-    camera.remove(currentHandsModel);
-    currentHandsModel = null;
-  }
-
-  if (handsGuiFolder) {
-    handsGuiFolder.destroy();
-    handsGuiFolder = null;
-  }
-
-  updateArmSelectionUI(); // Update UI to reflect the *attempt* to load.
-
   const loader = new GLTFLoader();
   loader.load(
     modelPath,
@@ -592,9 +324,6 @@ function init() {
   camera.position.set(4, PLAYER_HALF_HEIGHT + 0.1, 4);
   camera.lookAt(0, 0, 0);
 
-  const axesHelper = new THREE.AxesHelper(2);
-  scene.add(axesHelper);
-
   gui = new GUI();
   gui.add(settings, "moveSpeed", 0.1, 20, 0.1).name("Move Speed");
   gui
@@ -629,18 +358,6 @@ function init() {
 
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
-
-  // Event listeners for model switching buttons
-  document.getElementById("showFirstArms").addEventListener("click", () => {
-    if (activeModelPath !== "fp_arms.glb") {
-      loadHandsModel("fp_arms.glb");
-    }
-  });
-  document.getElementById("showSecondArms").addEventListener("click", () => {
-    if (activeModelPath !== "second_arms.glb") {
-      loadHandsModel("second_arms.glb"); // Make sure second_arms.glb exists
-    }
-  });
 
   window.addEventListener("resize", onWindowResize, false);
 
@@ -715,16 +432,6 @@ function onKeyDown(event) {
     case "KeyD":
     case "ArrowRight":
       moveRight = true;
-      break;
-    case "Digit1": // Key '1'
-      if (activeModelPath !== "fp_arms.glb") {
-        loadHandsModel("fp_arms.glb");
-      }
-      break;
-    case "Digit2": // Key '2'
-      if (activeModelPath !== "second_arms.glb") {
-        loadHandsModel("second_arms.glb");
-      }
       break;
   }
 }
@@ -890,6 +597,10 @@ function isInsideAntiCollision(displacementVector) {
     }
     return false;
   });
+
+  // if (!!antiCollisionObject) {
+  //   console.log("aaa");
+  // }
 
   return !!antiCollisionObject;
 }
