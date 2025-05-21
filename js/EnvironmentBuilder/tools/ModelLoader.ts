@@ -30,7 +30,7 @@ export class ModelLoader {
       // Create a group to hold the model
       const group = new THREE.Group();
       group.add(model);
-      group.name = "placeableObject";
+      group.name = "[placeableObject]";
 
       // Center the group
       const box = new THREE.Box3().setFromObject(model);
@@ -53,9 +53,9 @@ export class ModelLoader {
     // Use StateManager to add to placedObjects
     this.stateManager.addPlacedObject(group);
     // Add to drag controls
-    if (this.stateManager.dragControls) {
-      this.stateManager.dragControls.objects.push(group);
-    }
+    // if (this.stateManager.dragControls) {
+    //   this.stateManager.dragControls.objects.push(group);
+    // }
 
     return group;
   }
@@ -247,6 +247,26 @@ export class ModelLoader {
     URL.revokeObjectURL(url);
   }
 
+  public addCeilings(roomObjects: THREE.Object3D[]): THREE.Object3D[] {
+    roomObjects.forEach((obj) => {
+      obj.traverse((child) => {
+        if (child.name === "floor" && child instanceof THREE.Mesh) {
+          const ceiling = child.clone();
+          if (ceiling.geometry instanceof THREE.PlaneGeometry) {
+            ceiling.up = new THREE.Vector3(0, -1, 0);
+            ceiling.material = new THREE.MeshStandardMaterial({
+              color: 0xffffff,
+            });
+            ceiling.position.y = 5;
+            ceiling.name = "ceiling";
+            obj.add(ceiling);
+          }
+        }
+      });
+    });
+    return roomObjects;
+  }
+
   public async loadPositions(): Promise<void> {
     const input = document.createElement("input");
     input.type = "file";
@@ -271,9 +291,9 @@ export class ModelLoader {
                   return;
                 }
                 child.traverse((c) => {
-                  if (c instanceof THREE.Mesh) {
-                    c.material.emissive.set(0x000000);
-                  }
+                  // if (c instanceof THREE.Mesh) {
+                  //   c.material.emissive.set(0x000000);
+                  // }
 
                   if (c.name === "ground") {
                     roomObjects.push(c);
@@ -293,10 +313,31 @@ export class ModelLoader {
                   if (c.name.includes("[placeableObject]")) {
                     placeableObjects.push(c);
 
-                    if (c.name.includes("Lamp")) {
+                    if (c.name.includes("[Lamp]")) {
                       c.traverse((child) => {
-                        if (child instanceof THREE.Mesh) {
+                        if (
+                          child instanceof THREE.Mesh &&
+                          [
+                            "FloorLamp1_3",
+                            "FloorLamp1_2",
+                            "TableLamp1_3",
+                            "TableLamp1_2",
+                            "CeilingLamp1_2",
+                            "CeilingLamp5_2",
+                          ].includes(child.name)
+                        ) {
                           child.material.emissive.set(0xffffff);
+
+                          if (
+                            child.name === "FloorLamp1_3" ||
+                            child.name === "TableLamp1_3" ||
+                            child.name === "CeilingLamp1_2" ||
+                            child.name === "CeilingLamp5_2"
+                          ) {
+                            child.material.emissiveIntensity = 1;
+                          } else {
+                            child.material.emissiveIntensity = 0.2;
+                          }
                         }
                       });
                     }
@@ -319,24 +360,8 @@ export class ModelLoader {
 
               // Update placedObjects in state manager
 
-              roomObjects.forEach((obj) => {
-                obj.traverse((child) => {
-                  if (child.name.includes("Wall")) {
-                    if (child instanceof THREE.Mesh) {
-                      child.scale.set(1, 5 / 3, 1);
-                      child.geometry.computeBoundingBox();
-                      // const repeat = child.material.map?.repeat;
-                      // child.material.map.repeat.set(
-                      //   repeat.x,
-                      //   (repeat.y * 5) / 3
-                      // );
-                      const box = new THREE.Box3();
-                      box.copy(child.geometry.boundingBox);
-                      child.position.y = 2.5;
-                    }
-                  }
-                });
-              });
+              //addCeilings
+              // roomObjects = this.addCeilings(roomObjects);
 
               this.stateManager.setPlacedObjects(placeableObjects);
               this.stateManager.setRoomObjects(roomObjects);

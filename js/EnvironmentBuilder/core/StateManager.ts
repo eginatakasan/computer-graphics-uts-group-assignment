@@ -26,7 +26,7 @@ export class StateManager {
   public modelScale: number = 0.7;
   public textureRepeatU: number = 1;
   public textureRepeatV: number = 1;
-  public lightIntensity: number = 10;
+  public lightIntensity: number = 5;
   public lightDistance: number = 100;
   public lightColor: number = 0xffffff;
 

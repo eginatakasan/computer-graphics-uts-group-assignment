@@ -5,6 +5,7 @@ import {
   FLOOR_LAMP,
   CEILING_LAMP_VARIANT_1,
   TABLE_LAMP,
+  CEILING_LAMP,
 } from "../../../public/models/index";
 
 const LIGHT_COLOR = 0xffee88;
@@ -27,20 +28,7 @@ export class LightsPlacer {
     this.loader = new GLTFLoader();
 
     this.stateManager.subscribe("lightsPlacementActive", (active: boolean) => {
-      this.isActive = active;
-      if (active) {
-        this.setupLampPreview();
-        // Add click handler when tool is activated
-        this.canvas.addEventListener("click", this.handleLampPlacement);
-      } else {
-        this.cleanupLampPreview();
-        // Remove click handler when tool is deactivated
-        this.canvas.removeEventListener("click", this.handleLampPlacement);
-      }
-    });
-
-    this.stateManager.subscribe("resetScene", () => {
-      this.cleanupLampPreview();
+      this.setActive(active);
     });
   }
 
@@ -95,6 +83,9 @@ export class LightsPlacer {
       case "ceiling":
         modelPath = CEILING_LAMP_VARIANT_1;
         break;
+      case "ceiling2":
+        modelPath = CEILING_LAMP;
+        break;
       case "table":
         modelPath = TABLE_LAMP;
         break;
@@ -114,6 +105,7 @@ export class LightsPlacer {
     if (!this.currentLampType) return;
 
     try {
+      console.log("setupLampPreview");
       const baseModel = await this.loadLampModel(this.currentLampType);
 
       // Create preview lamp
@@ -140,14 +132,16 @@ export class LightsPlacer {
       this.previewLamp.add(lampClone);
       this.previewLamp.add(boxHelper);
       this.previewLamp.add(light);
-      this.stateManager.scene.add(this.previewLamp);
       light.position.set(0, lampClone.position.y, 0);
+      this.stateManager.scene.add(this.previewLamp);
 
       // Store the base model for placement
       this.lampModel = baseModel;
 
       // Add mouse move listener
       this.canvas.addEventListener("mousemove", this.handleLampPreview);
+      // Add click handler when tool is activated
+      this.canvas.addEventListener("click", this.handleLampPlacement);
     } catch (error) {
       console.error("Error loading lamp model:", error);
     }
@@ -159,6 +153,8 @@ export class LightsPlacer {
       this.previewLamp = null;
     }
     this.canvas.removeEventListener("mousemove", this.handleLampPreview);
+    // Remove click handler when tool is deactivated
+    this.canvas.removeEventListener("click", this.handleLampPlacement);
   }
 
   private handleLampPreview = (event: MouseEvent): void => {

@@ -667,7 +667,7 @@ export class UIManager {
     this.lampTypeFolder = this.gui.addFolder("Lamp Types");
 
     this.lampTypeFolder
-      .add({ type: "floor" }, "type", ["floor", "ceiling", "table"])
+      .add({ type: "floor" }, "type", ["floor", "ceiling", "ceiling2", "table"])
       .name("Select Lamp Type")
       .onChange((value) => {
         this.lightsPlacer.setLampType(value);
