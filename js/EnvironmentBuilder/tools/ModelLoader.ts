@@ -253,10 +253,11 @@ export class ModelLoader {
         if (child.name === "floor" && child instanceof THREE.Mesh) {
           const ceiling = child.clone();
           if (ceiling.geometry instanceof THREE.PlaneGeometry) {
-            ceiling.up = new THREE.Vector3(0, -1, 0);
             ceiling.material = new THREE.MeshStandardMaterial({
-              color: 0xffffff,
+              color: 0xaaaaaa,
+              side: THREE.DoubleSide,
             });
+            ceiling.up = new THREE.Vector3(0, -1, 0);
             ceiling.position.y = 5;
             ceiling.name = "ceiling";
             obj.add(ceiling);
@@ -285,7 +286,7 @@ export class ModelLoader {
             new THREE.ObjectLoader().parse(json, (object) => {
               const placeableObjects: THREE.Object3D<THREE.Object3DEventMap>[] =
                 [];
-              const roomObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
+              let roomObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
               object.children.forEach((child, index) => {
                 if (child.name === "ground") {
                   return;
@@ -306,7 +307,7 @@ export class ModelLoader {
                   }
 
                   if (c.name.includes("[Door]")) {
-                    roomObjects.push(c);
+                    placeableObjects.push(c);
                     return;
                   }
 

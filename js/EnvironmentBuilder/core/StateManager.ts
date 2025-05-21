@@ -29,6 +29,7 @@ export class StateManager {
   public lightIntensity: number = 5;
   public lightDistance: number = 100;
   public lightColor: number = 0xffffff;
+  public ceilingVisible: boolean = true;
 
   // Selection state
   public selectedObject: THREE.Object3D | null = null;
@@ -133,6 +134,16 @@ export class StateManager {
   public getLightColor(): number {
     return this.lightColor;
   }
+
+  public setCeilingVisible(visible: boolean): void {
+    this.ceilingVisible = visible;
+    this.notifyListeners("ceilingVisible", visible);
+  }
+
+  public getCeilingVisible(): boolean {
+    return this.ceilingVisible;
+  }
+
   // Settings getters/setters
   public setModelScale(scale: number): void {
     this.modelScale = scale;

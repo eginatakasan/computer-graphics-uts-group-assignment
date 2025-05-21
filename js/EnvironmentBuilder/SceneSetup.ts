@@ -16,7 +16,7 @@ export class SceneSetup {
     this.setupScene();
     this.setupRenderer(container);
     this.setupGrid();
-    this.setupLights();
+    this.setupAmbientLights();
     this.setupCamera();
   }
 
@@ -46,14 +46,14 @@ export class SceneSetup {
       map: grassTexture,
       side: THREE.DoubleSide,
     });
-    // this.ground = new THREE.Mesh(
-    //   new THREE.PlaneGeometry(this.sceneSize * 2, this.sceneSize * 2),
-    //   material
-    // );
-    // this.ground.name = "ground";
-    // this.ground.rotation.x = -Math.PI / 2;
-    // this.ground.position.y = -0.5;
-    // this.scene.add(this.ground);
+    this.ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(this.sceneSize * 2, this.sceneSize * 2),
+      material
+    );
+    this.ground.name = "ground";
+    this.ground.rotation.x = -Math.PI / 2;
+    this.ground.position.y = -0.5;
+    this.scene.add(this.ground);
   }
 
   private setupCamera(): void {
@@ -80,14 +80,9 @@ export class SceneSetup {
     this.scene.add(this.gridHelper);
   }
 
-  private setupLights(): void {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2);
+  private setupAmbientLights(): void {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1);
     this.scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5);
-    directionalLight.castShadow = true;
-    this.scene.add(directionalLight);
   }
 
   public getScene(): THREE.Scene {
@@ -111,7 +106,7 @@ export class SceneSetup {
 
   public resetScene(): void {
     this.setupGrid();
-    // this.setupLights();
+    this.setupAmbientLights();
     this.setupCamera();
   }
 }

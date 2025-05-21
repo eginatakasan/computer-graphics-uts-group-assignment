@@ -64,6 +64,11 @@ export class UIManager {
     this.stateManager.subscribe("roomObjectsChanged", () => {
       this.updateObjectList();
     });
+
+    // Subscribe to ceiling visibility changes
+    this.stateManager.subscribe("ceilingVisible", () => {
+      this.updateCeilingVisibility();
+    });
   }
 
   private setupGUI(): void {
@@ -80,6 +85,16 @@ export class UIManager {
         "loadPositions"
       )
       .name("Load Positions");
+
+    // Add ceiling visibility toggle
+    const viewFolder = this.gui.addFolder("View Settings");
+    viewFolder
+      .add({ ceilingVisible: true }, "ceilingVisible")
+      .name("Show Ceiling")
+      .onChange((value) => {
+        this.stateManager.setCeilingVisible(value);
+        this.updateCeilingVisibility();
+      });
 
     // Add Load Model button and scale slider
     const modelFolder = this.gui.addFolder("Models");
@@ -766,5 +781,16 @@ export class UIManager {
   }
   public setLightsPlacer(lightsPlacer: LightsPlacer) {
     this.lightsPlacer = lightsPlacer;
+  }
+
+  private updateCeilingVisibility(): void {
+    const isVisible = this.stateManager.getCeilingVisible();
+    this.stateManager.roomObjects.forEach((room) => {
+      room.children.forEach((child) => {
+        if (child.name.includes("ceiling")) {
+          child.visible = isVisible;
+        }
+      });
+    });
   }
 }
