@@ -8,6 +8,7 @@ import { DoorPlacer } from "./tools/DoorPlacer";
 import { TextureManager } from "./tools/TextureManager";
 import { CommandManager } from "./core/CommandManager";
 import { ObjectLoader } from "three";
+import { LightsPlacer } from "./tools/LightsPlacer";
 
 export class UIManager {
   private gui: GUI;
@@ -17,6 +18,7 @@ export class UIManager {
   private doorButtonElement: HTMLButtonElement;
   private deleteButtonElement: HTMLButtonElement;
   private boxButtonElement: HTMLButtonElement;
+  private lightsButtonElement: HTMLButtonElement;
   private canvas: HTMLCanvasElement;
   private objectLoader: ObjectLoader;
   private modelLoader: ModelLoader;
@@ -25,15 +27,19 @@ export class UIManager {
   private textureManager: TextureManager;
   private stateManager: StateManager;
   private commandManager: CommandManager;
+  private lightsPlacer: LightsPlacer;
   private objectScaleFolder: GUI | null = null;
   private objectListContainer: HTMLDivElement | null = null;
   private objectListFolder: GUI | null = null;
+  private lampTypeFolder: GUI | null = null;
+  private lightControlsFolder: GUI | null = null;
   public isRoomToolActive: boolean = false;
   public isDoorPlacementActive: boolean = false;
   public isDeleteToolActive: boolean = false;
   public isBoxPlacementActive: boolean = false;
+  public isLightsPlacementActive: boolean = false;
   public isRoomsSelectable: boolean = false;
-  public modelScale: number = 0.7;
+  public modelScale: number = 1.2;
   public textureRepeatU: number = 1;
   public textureRepeatV: number = 1;
 
@@ -435,11 +441,96 @@ export class UIManager {
     // Update the object scale folder
     this.createObjectScaleFolder(object);
 
+    // If the selected object is a lamp, create light controls
+    if (object.name.includes("[Lamp]")) {
+      this.createLightControls(object);
+    } else {
+      this.removeLightControls();
+    }
+
     // Update the object list UI to reflect selection
     this.updateObjectList();
   }
 
+  public createLightControls(lampObject: THREE.Object3D): void {
+    // Remove existing light controls if any
+    this.removeLightControls();
+
+    // Find the point light in the lamp object
+    const light = lampObject.children.find(
+      (child) => child instanceof THREE.PointLight
+    ) as THREE.PointLight;
+
+    if (!light) return;
+
+    // Create light controls folder
+    this.lightControlsFolder = this.gui.addFolder("Light Controls");
+
+    // Add intensity control
+    this.lightControlsFolder
+      .add(light, "intensity", 0, 20, 0.1)
+      .name("Intensity")
+      .onChange(() => {
+        this.stateManager.setLightIntensity(light.intensity);
+      });
+
+    // Add distance control
+    this.lightControlsFolder
+      .add(light, "distance", 0, 200, 1)
+      .name("Radius")
+      .onChange(() => {
+        this.stateManager.setLightDistance(light.distance);
+      });
+
+    // Add color control
+    // const colorControl = { color: light.color.getHex() };
+    // this.lightControlsFolder
+    //   .addColor(colorControl, "color")
+    //   .name("Color")
+    //   .onFinishChange((value) => {
+    //     console.log("color", value);
+    //     const color = new THREE.Color(value);
+    //     this.stateManager.setLightColor(color.getHex());
+    //   });
+
+    // Add position controls
+    // const positionFolder = this.lightControlsFolder.addFolder("Light Position");
+    // positionFolder
+    //   .add(light.position, "y", 0, 10, 0.1)
+    //   .name("Height")
+    //   .onChange(() => {
+    //     // Update light helper if it exists
+    //     const lightHelper = lampObject.children.find(
+    //       (child) => child instanceof THREE.PointLightHelper
+    //     );
+    //     if (lightHelper) {
+    //       lightHelper.update();
+    //     }
+    //   });
+  }
+
+  public removeLightControls(): void {
+    if (this.lightControlsFolder) {
+      this.lightControlsFolder.destroy();
+      this.lightControlsFolder = null;
+    }
+  }
+
   private setupToolButtons(): void {
+    // Add Lights Placement button
+    this.lightsButtonElement = document.createElement("button");
+    this.lightsButtonElement.id = "lights-tool";
+    this.lightsButtonElement.textContent = "Place Lights";
+    this.lightsButtonElement.style.marginTop = "10px";
+    this.roomToolElement.parentNode?.insertBefore(
+      this.lightsButtonElement,
+      this.roomToolElement.nextSibling
+    );
+
+    this.lightsButtonElement.addEventListener("click", () => {
+      this.toggleLightsPlacement();
+    });
+
     // Add Box Placement button
     this.boxButtonElement = document.createElement("button");
     this.boxButtonElement.id = "box-tool";
@@ -544,6 +635,55 @@ export class UIManager {
     this.stateManager.setBoxPlacementActive(this.isBoxPlacementActive);
   }
 
+  public toggleLightsPlacement(): void {
+    this.isLightsPlacementActive = !this.isLightsPlacementActive;
+    this.isRoomToolActive = false;
+    this.isDoorPlacementActive = false;
+    this.isDeleteToolActive = false;
+    this.isBoxPlacementActive = false;
+
+    this.modelScale = 1.7;
+    this.stateManager.setModelScale(1.7);
+
+    this.updateButtonStyles();
+    this.stateManager.setLightsPlacementActive(this.isLightsPlacementActive);
+    this.controller.setDragControlsEnabled(!this.isLightsPlacementActive);
+    this.canvas.style.cursor = this.isLightsPlacementActive
+      ? "crosshair"
+      : "default";
+
+    if (this.isLightsPlacementActive) {
+      this.showLampTypeSelector();
+    } else {
+      this.cleanupLampTypeSelector();
+    }
+  }
+
+  private showLampTypeSelector(): void {
+    // Remove existing folder if it exists
+    this.cleanupLampTypeSelector();
+
+    // Create new folder
+    this.lampTypeFolder = this.gui.addFolder("Lamp Types");
+
+    this.lampTypeFolder
+      .add({ type: "floor" }, "type", ["floor", "ceiling", "table"])
+      .name("Select Lamp Type")
+      .onChange((value) => {
+        this.lightsPlacer.setLampType(value);
+      });
+
+    // Set default lamp type
+    this.lightsPlacer.setLampType("floor");
+  }
+
+  private cleanupLampTypeSelector(): void {
+    if (this.lampTypeFolder) {
+      this.lampTypeFolder.destroy();
+      this.lampTypeFolder = null;
+    }
+  }
+
   private updateButtonStyles(): void {
     this.deleteButtonElement.style.backgroundColor = this.isDeleteToolActive
       ? "#00ff00"
@@ -555,6 +695,10 @@ export class UIManager {
       ? "#00ff00"
       : "#fff";
     this.boxButtonElement.style.backgroundColor = this.isBoxPlacementActive
+      ? "#00ff00"
+      : "#fff";
+    this.lightsButtonElement.style.backgroundColor = this
+      .isLightsPlacementActive
       ? "#00ff00"
       : "#fff";
   }
@@ -619,5 +763,8 @@ export class UIManager {
   }
   public setCommandManager(commandManager) {
     this.commandManager = commandManager;
+  }
+  public setLightsPlacer(lightsPlacer: LightsPlacer) {
+    this.lightsPlacer = lightsPlacer;
   }
 }

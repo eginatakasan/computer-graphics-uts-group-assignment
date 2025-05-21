@@ -111,7 +111,7 @@ export class SceneSetup {
 
   public resetScene(): void {
     this.setupGrid();
-    this.setupLights();
+    // this.setupLights();
     this.setupCamera();
   }
 }

@@ -5,4 +5,7 @@ const container = document.getElementById("container");
 if (container) {
   const environmentBuilder = new EnvironmentBuilder(container);
   environmentBuilder.setSceneSize(200);
+  // environmentBuilder
+  //   .getModelLoader()
+  //   .loadPositionsAt("/positions/houseWithDoors.json");
 }

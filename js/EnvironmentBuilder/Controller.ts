@@ -220,11 +220,18 @@ export class Controller {
       // Update UI if uiManager is set
       if (this.uiManager) {
         this.uiManager.createObjectScaleFolder(object);
+        // Check if the selected object is a lamp and create light controls
+        if (object.name && object.name.includes("[Lamp]")) {
+          this.uiManager.createLightControls(object);
+        } else {
+          this.uiManager.removeLightControls();
+        }
         this.uiManager.updateObjectList();
       }
     } else if (this.uiManager) {
       // Remove object scale folder if no object is selected
       this.uiManager.removeObjectScaleFolder();
+      this.uiManager.removeLightControls();
       this.uiManager.updateObjectList();
     }
   }

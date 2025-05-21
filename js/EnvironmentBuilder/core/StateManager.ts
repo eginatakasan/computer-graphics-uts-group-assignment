@@ -20,11 +20,15 @@ export class StateManager {
   public isBuildingRoom: boolean = false;
   public isRoomsSelectable: boolean = false;
   public isBoxPlacementActive: boolean = false;
+  public isLightsPlacementActive: boolean = false;
 
   // Settings
   public modelScale: number = 0.7;
   public textureRepeatU: number = 1;
   public textureRepeatV: number = 1;
+  public lightIntensity: number = 10;
+  public lightDistance: number = 100;
+  public lightColor: number = 0xffffff;
 
   // Selection state
   public selectedObject: THREE.Object3D | null = null;
@@ -106,6 +110,29 @@ export class StateManager {
     return this.isBoxPlacementActive;
   }
 
+  public setLightsPlacementActive(active: boolean): void {
+    this.isLightsPlacementActive = active;
+    this.notifyListeners("lightsPlacementActive", active);
+  }
+
+  public setLightIntensity(intensity: number): void {
+    this.lightIntensity = intensity;
+    this.notifyListeners("lightIntensity", intensity);
+  }
+
+  public setLightDistance(distance: number): void {
+    this.lightDistance = distance;
+    this.notifyListeners("lightDistance", distance);
+  }
+
+  public setLightColor(color: number): void {
+    this.lightColor = color;
+    this.notifyListeners("lightColor", color);
+  }
+
+  public getLightColor(): number {
+    return this.lightColor;
+  }
   // Settings getters/setters
   public setModelScale(scale: number): void {
     this.modelScale = scale;
@@ -147,6 +174,7 @@ export class StateManager {
   // PlacedObjects methods
   public addPlacedObject(object: THREE.Object3D): void {
     this.placedObjects.push(object);
+    console.log("Placed objects:", this.placedObjects);
     this.notifyListeners("placedObjectsChanged", this.placedObjects);
   }
 
