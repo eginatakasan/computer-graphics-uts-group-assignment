@@ -19,6 +19,7 @@ export class StateManager {
   public isDeleteToolActive: boolean = false;
   public isBuildingRoom: boolean = false;
   public isRoomsSelectable: boolean = false;
+  public isBoxPlacementActive: boolean = false;
 
   // Settings
   public modelScale: number = 0.7;
@@ -89,6 +90,20 @@ export class StateManager {
 
   public getRoomsSelectable(): boolean {
     return this.isRoomsSelectable;
+  }
+
+  public setBoxPlacementActive(active: boolean): void {
+    if (active) {
+      this.isRoomToolActive = false;
+      this.isDoorPlacementActive = false;
+      this.isDeleteToolActive = false;
+    }
+    this.isBoxPlacementActive = active;
+    this.notifyListeners("boxPlacementActive", active);
+  }
+
+  public getBoxPlacementActive(): boolean {
+    return this.isBoxPlacementActive;
   }
 
   // Settings getters/setters

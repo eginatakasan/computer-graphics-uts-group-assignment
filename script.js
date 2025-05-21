@@ -12,6 +12,7 @@ let currentHandsModel; // Renamed from boxModel
 let handsGuiFolder; // To manage the GUI folder for hands
 let gui;
 let collidableObjects = [];
+let antiCollidableObjects = [];
 let interactableObjects = []; // To store objects that can be interacted with
 let raycaster; // For detecting what the camera is looking at
 let highlightedObject = null; // To keep track of the currently highlighted object
@@ -205,15 +206,18 @@ function loadPositions(path) {
       new THREE.ObjectLoader().parse(json, (object) => {
         const placeableObjects = [];
         const roomObjects = [];
+        const doorObjects = [];
         object.traverse((child) => {
           if (child.name === "ground") {
             return;
           }
           child.traverse((c) => {
-            if (c.name === "placeableObject") {
+            if (c.name.includes("[placeableObject]")) {
               placeableObjects.push(c);
-            } else if (c.name === "room") {
+            } else if (c.name.includes("[Room]")) {
               roomObjects.push(c);
+            } else if (c.name.includes("[Door]")) {
+              doorObjects.push(c);
             }
           });
         });
@@ -231,6 +235,11 @@ function loadPositions(path) {
           });
         }
 
+        for (const door of doorObjects) {
+          scene.add(door);
+          antiCollidableObjects.push(door);
+        }
+
         for (const placeableObject of placeableObjects) {
           scene.add(placeableObject);
           collidableObjects.push(placeableObject);
@@ -246,7 +255,7 @@ function loadPositions(path) {
 }
 
 function loadHouse() {
-  loadPositions("/positions/houseWithHoles.json");
+  loadPositions("/positions/houseWithDoors.json");
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
@@ -850,6 +859,41 @@ function animate() {
   renderer.render(scene, camera);
 }
 
+function isInsideAntiCollision(displacementVector) {
+  const playerCurrentPosition = controls.object.position;
+  const playerTargetPosition = playerCurrentPosition
+    .clone()
+    .add(displacementVector);
+
+  const antiCollisionObject = antiCollidableObjects.find((obj) => {
+    let objectBox;
+    if (obj instanceof THREE.Mesh) {
+      if (!obj.geometry.boundingBox) {
+        obj.geometry.computeBoundingBox();
+      }
+      objectBox = obj.geometry.boundingBox
+        .clone()
+        .applyMatrix4(obj.matrixWorld);
+    } else {
+      objectBox = new THREE.Box3().setFromObject(obj);
+    }
+
+    // Create a slightly expanded box to check if player is "inside" the object
+    const expandedBox = objectBox.clone();
+
+    // Check if player's position is inside the expanded box
+    const isInside = expandedBox.containsPoint(playerTargetPosition);
+
+    if (isInside) {
+      // console.log("Player inside anti-collision object", obj);
+      return true;
+    }
+    return false;
+  });
+
+  return !!antiCollisionObject;
+}
+
 function checkCollision(displacementVector) {
   const playerCurrentPosition = controls.object.position;
   const playerTargetPosition = playerCurrentPosition
@@ -865,6 +909,10 @@ function checkCollision(displacementVector) {
     playerTargetPosition,
     playerHalfSize.multiplyScalar(2)
   );
+
+  if (isInsideAntiCollision(displacementVector)) {
+    return false;
+  }
 
   for (const wall of collidableObjects) {
     if (wall instanceof THREE.Mesh) {

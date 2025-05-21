@@ -6,7 +6,6 @@ import { Object3D } from "three";
 import { Object3DEventMap } from "three";
 import { Intersection } from "three";
 
-
 const doorWidth = 2;
 const doorHeight = 2.5;
 const wallThickness = 0.1;
@@ -33,7 +32,17 @@ export class DoorPlacer {
     try {
       const gltf = await this.loader.loadAsync(DOOR);
       this.doorModel = this.transformModel(gltf.scene, 1.2);
-      this.doorModel.name = "door";
+      gltf.scene.scale.setY(1.4);
+      const geometry = new THREE.BoxGeometry(1, 3, 1.4);
+      const material = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        transparent: true,
+        opacity: 0.5,
+      });
+      const box = new THREE.Mesh(geometry, material);
+      box.position.set(0, 1.5, 0);
+      this.doorModel.add(box);
+      this.doorModel.name = "[Door]";
     } catch (error) {
       console.error("Error loading door model:", error);
     }
@@ -174,16 +183,14 @@ export class DoorPlacer {
       );
     }
 
-
-    this.makeAHole(wall.object as THREE.Mesh, position);
-    if (wall1) {
-      this.makeAHole(wall1.object as THREE.Mesh, position);
-    }
+    // this.makeAHole(wall.object as THREE.Mesh, position);
+    // if (wall1) {
+    //   this.makeAHole(wall1.object as THREE.Mesh, position);
+    // }
 
     this.stateManager.scene.add(door);
     this.stateManager.addPlacedObject(door);
   };
-
 
   private makeAHole(wall: THREE.Mesh, position: THREE.Vector3): void {
     const isFrontOrBackWall =
