@@ -3,7 +3,11 @@ import { PointerLockControls } from "three/examples/jsm/controls/PointerLockCont
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import GUI from "lil-gui";
 import { enableCoordinatePicking } from "./cordinate-picker.js";
-import { generateRoomMesses, createDustBunny } from "./generate-mess.js";
+import {
+  generateRoomFloorMesses,
+  generateRoomWallMesses,
+  generateRoomObjectMesses,
+} from "./generate-mess.js";
 
 let scene, camera, renderer, controls, mixer;
 const animationActions = {};
@@ -33,9 +37,9 @@ const PLAYER_HALF_HEIGHT = 2; // Player is 1.8 units tall
 let playerWorldAABB = new THREE.Box3();
 let wallWorldAABB = new THREE.Box3();
 
-// Glow color constants
-const WHITE_GLOW = 0xcccccc;
-const RED_GLOW = 0xff3333;
+const placeableObjects = [];
+const roomObjects = [];
+const doorObjects = [];
 
 // Movement variables
 let moveForward = false;
@@ -53,17 +57,144 @@ const settings = {
 init();
 animate();
 
-function setupInteractableObjects() {}
+function setupInteractableObjects() { }
 
-function highlightObject(object) {}
+function highlightObject(object) {
+  if (!object || !object.material) return;
 
-function unhighlightObject(object) {}
+  const mat = object.material;
+
+  // Case 1: emissive-supported material (e.g., MeshLambertMaterial)
+  if ('emissive' in mat) {
+    mat.userData = mat.userData || {};
+    mat.userData.originalEmissive = mat.emissive.getHex();
+    mat.emissive.setHex(0xffcc00); // yellow glow
+  }
+  // Case 2: fallback for basic materials
+  else if ('color' in mat) {
+    mat.userData = mat.userData || {};
+    mat.userData.originalColor = mat.color.getHex();
+    mat.color.setHex(0xff4444); // red tint
+  }
+}
+
+function unhighlightObject(object) {
+  if (!object || !object.material) return;
+
+  const mat = object.material;
+  const ud = mat.userData || {};
+
+  if ('emissive' in mat && ud.originalEmissive !== undefined) {
+    mat.emissive.setHex(ud.originalEmissive);
+  } else if ('color' in mat && ud.originalColor !== undefined) {
+    mat.color.setHex(ud.originalColor);
+  }
+}
+
+function highlightWithColor(object) {
+  if (object && object.material && object.material.color) {
+    object.material.userData = object.material.userData || {};
+    object.material.userData.originalColor = object.material.color.getHex();
+    object.material.color.setHex(0xff4444); // red tint highlight
+  }
+}
+
+function unhighlightWithColor(object) {
+  if (object && object.material && object.material.color) {
+    const originalColor = object.material.userData?.originalColor;
+    if (originalColor !== undefined) {
+      object.material.color.setHex(originalColor);
+    }
+  }
+}
 
 function handleObjectInteraction(objectType) {
   // This function is called when an interactable object is being looked at.
   // Add specific actions based on objectType here.
   console.log("Player is looking at:", objectType);
 }
+
+// function handleMessInteraction(target) {
+//   const type = target.userData.object_type;
+
+//   if (type === "swappable") {
+//     const gltfLoader = new GLTFLoader();
+//     const swapPath = target.userData.modelSwap;
+//     const pos = target.userData.position || target.position;
+//     const scale = target.userData.cleanScale || 0.5;
+//     const groupToRemove = target.userData.parentGroup || target;
+
+//     scene.remove(groupToRemove);
+
+//     if (swapPath && swapPath.trim() !== "") {
+//       gltfLoader.load(swapPath, (gltf) => {
+//         const clean = gltf.scene;
+//         clean.position.copy(pos);
+//         clean.scale.setScalar(scale);
+//         clean.rotation.y = Math.random() * Math.PI * 2;
+//         scene.add(clean);
+//       });
+//     } else {
+//       console.log(
+//         `🧹 Removed mess '${target.userData.subtype}' with no clean model.`
+//       );
+//     }
+
+//     console.log(`✅ Swapped ${target.userData.subtype} to clean model.`);
+//   } else {
+//     const groupToRemove = target.userData.ownerGroup || target;
+//     scene.remove(groupToRemove);
+//     console.log(`🧼 Removed ${type} mess from scene.`);
+//   }
+// }
+
+function handleMessInteraction(target) {
+  const type = target.userData.object_type;
+
+  // Define the actual object that was added to interactableObjects
+  const referenceToRemove = target.userData.ownerGroup || target.userData.parentGroup || target;
+
+  // Remove from scene
+  scene.remove(referenceToRemove);
+
+  // Remove from interactables
+  const index = interactableObjects.indexOf(target);
+  if (index !== -1) {
+    interactableObjects.splice(index, 1);
+  }
+
+  // Also check for proxy references like dust bunnies or others
+  if (target.userData.ownerGroup) {
+    const proxyIndex = interactableObjects.indexOf(target.userData.ownerGroup);
+    if (proxyIndex !== -1) {
+      interactableObjects.splice(proxyIndex, 1);
+    }
+  }
+
+  if (type === "swappable") {
+    const gltfLoader = new GLTFLoader();
+    const swapPath = target.userData.modelSwap;
+    const pos = target.userData.position || target.position;
+    const scale = target.userData.cleanScale || 0.5;
+
+    if (swapPath && swapPath.trim() !== "") {
+      gltfLoader.load(swapPath, (gltf) => {
+        const clean = gltf.scene;
+        clean.position.copy(pos);
+        clean.scale.setScalar(scale);
+        clean.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(clean);
+      });
+    } else {
+      console.log(`🧹 Removed mess '${target.userData.subtype}' with no clean model.`);
+    }
+
+    console.log(`✅ Swapped ${target.userData.subtype} to clean model.`);
+  } else {
+    console.log(`🧼 Removed ${type} mess from scene.`);
+  }
+}
+
 
 function loadPositions(path) {
   fetch(path)
@@ -77,9 +208,6 @@ function loadPositions(path) {
     })
     .then((json) => {
       new THREE.ObjectLoader().parse(json, (object) => {
-        const placeableObjects = [];
-        const roomObjects = [];
-        const doorObjects = [];
         object.traverse((child) => {
           if (child.name === "ground") {
             return;
@@ -131,14 +259,117 @@ function loadPositions(path) {
 }
 
 function loadHouse() {
-  loadPositions("/positions/houseWithDoors.json");
+  loadPositions("/positions/houseWithLights.json");
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
-  generateRoomMesses(scene, "single-bedroom", 4);
-  const pos = new THREE.Vector3(3.2, 0.82, 0.27);
-  const bunny = createDustBunny(pos);
-  scene.add(bunny);
+
+  //object messes
+  generateRoomObjectMesses(
+    scene,
+    "house",
+    5,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //single-bedroom
+  generateRoomFloorMesses(
+    scene,
+    "single-bedroom",
+    4,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "single-bedroom",
+    1,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //living-room
+  generateRoomFloorMesses(
+    scene,
+    "living-room",
+    4,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "living-room",
+    2,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //study
+  generateRoomFloorMesses(
+    scene,
+    "study",
+    2,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "study",
+    1,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //toilet
+  generateRoomFloorMesses(
+    scene,
+    "toilet",
+    2,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "toilet",
+    3,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //master
+  generateRoomFloorMesses(
+    scene,
+    "master",
+    3,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "master",
+    1,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //kitchen
+  generateRoomObjectMesses(
+    scene,
+    "kitchen",
+    1,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //corridor
+  generateRoomFloorMesses(
+    scene,
+    "corridor",
+    3,
+    "mess-positions.json",
+    interactableObjects
+  );
 }
 
 function loadHandsModel(modelPath) {
@@ -151,20 +382,15 @@ function loadHandsModel(modelPath) {
 
       // Default position and rotation, adjust as needed
       currentHandsModel.position.set(0, -1.72, -0.83);
-      currentHandsModel.rotation.set(0.428, -Math.PI, 0); // Example rotation
+      currentHandsModel.rotation.set(0.5, -Math.PI, 0); // Example rotation
       currentHandsModel.scale.set(1.1, 1.1, 1.1);
-
-      if (modelPath === "second_arms.glb") {
-        currentHandsModel.scale.set(0.01, 0.01, 0.01); // Adjust scale for second model
-      }
 
       currentHandsModel.traverse(function (child) {
         if (child.isMesh) {
           child.frustumCulled = false;
-          child.castShadow = true;
+          child.castShadow = false;
         }
       });
-      currentHandsModel.frustumCulled = false;
 
       // Initialize AnimationMixer
       mixer = new THREE.AnimationMixer(currentHandsModel);
@@ -174,8 +400,6 @@ function loadHandsModel(modelPath) {
         const action = mixer.clipAction(clip);
         animationActions[clip.name] = action;
       });
-
-      console.log(animationActions, "animationActions");
 
       // Play the first animation by default, or an 'idle' animation
       if (gltf.animations.length > 0) {
@@ -220,12 +444,6 @@ function loadHandsModel(modelPath) {
         `An error happened while loading GLTF model '${modelPath}':`,
         error
       );
-      // Revert to previous model path and update UI
-      activeModelPath = previousActiveModelPath;
-      console.log(
-        `Reverted active model path to: ${activeModelPath || "none"}`
-      );
-      updateArmSelectionUI(); // Reflect that the attempted model is not active
     }
   );
 }
@@ -268,8 +486,6 @@ function switchToDefaultAnimation(crossfadeDuration = ANIMATION_FADE_DURATION) {
     }
     return;
   }
-
-  console.log(animationActions, "animationActions");
 
   const walkAction = animationActions["Walk"];
 
@@ -382,7 +598,7 @@ function init() {
       interactionTarget = highlightedObject;
       progressBarContainer.style.display = "block";
       progressBarFill.style.width = "0%";
-      playTargetAnimation("Sprint_Type_1", true); // Play "Take" animation once
+      playTargetAnimation("Sprint_Type_1", false); // Play "Take" animation once
       event.stopPropagation();
     }
   });
@@ -490,7 +706,13 @@ function animate() {
       highlightedObject !== currentTarget &&
       !isInteracting
     ) {
-      unhighlightObject(highlightedObject);
+      // unhighlightObject(highlightedObject);
+      const mat = highlightedObject.material;
+      if (mat && "emissive" in mat) {
+        unhighlightObject(highlightedObject);
+      } else {
+        unhighlightWithColor(highlightedObject);
+      }
       highlightedObject = null;
     }
 
@@ -499,11 +721,23 @@ function animate() {
       currentTarget !== highlightedObject &&
       !isInteracting
     ) {
-      highlightObject(currentTarget);
+      // highlightObject(currentTarget);
       highlightedObject = currentTarget;
+      const mat = currentTarget.material;
+      if (mat && "emissive" in mat) {
+        highlightObject(currentTarget); // your original emissive glow
+      } else {
+        highlightWithColor(currentTarget); // fallback for MeshBasicMaterial etc.
+      }
       handleObjectInteraction(currentTarget.userData.object_type);
     } else if (!currentTarget && highlightedObject && !isInteracting) {
-      unhighlightObject(highlightedObject);
+      // unhighlightObject(highlightedObject);
+      const mat = highlightedObject.material;
+      if (mat && "emissive" in mat) {
+        unhighlightObject(highlightedObject);
+      } else {
+        unhighlightWithColor(highlightedObject);
+      }
       highlightedObject = null;
     }
 
@@ -516,6 +750,8 @@ function animate() {
         progressBarFill.style.width = progress * 100 + "%";
 
         if (progress >= 1) {
+          // handleClothesInteraction(currentTarget);
+          handleMessInteraction(currentTarget);
           console.log(
             "Interaction complete with:",
             interactionTarget.userData.object_type
@@ -566,12 +802,7 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-function isInsideAntiCollision(displacementVector) {
-  const playerCurrentPosition = controls.object.position;
-  const playerTargetPosition = playerCurrentPosition
-    .clone()
-    .add(displacementVector);
-
+function isInsideAntiCollision(playerTargetPosition) {
   const antiCollisionObject = antiCollidableObjects.find((obj) => {
     let objectBox;
     if (obj instanceof THREE.Mesh) {
@@ -585,22 +816,14 @@ function isInsideAntiCollision(displacementVector) {
       objectBox = new THREE.Box3().setFromObject(obj);
     }
 
-    // Create a slightly expanded box to check if player is "inside" the object
-    const expandedBox = objectBox.clone();
-
     // Check if player's position is inside the expanded box
-    const isInside = expandedBox.containsPoint(playerTargetPosition);
+    const isInside = objectBox.containsPoint(playerTargetPosition);
 
     if (isInside) {
-      // console.log("Player inside anti-collision object", obj);
       return true;
     }
     return false;
   });
-
-  // if (!!antiCollisionObject) {
-  //   console.log("aaa");
-  // }
 
   return !!antiCollisionObject;
 }
@@ -621,27 +844,27 @@ function checkCollision(displacementVector) {
     playerHalfSize.multiplyScalar(2)
   );
 
-  if (isInsideAntiCollision(displacementVector)) {
+  if (isInsideAntiCollision(playerTargetPosition)) {
     return false;
   }
 
-  for (const wall of collidableObjects) {
-    if (wall instanceof THREE.Mesh) {
-      if (wall.updateWorldMatrix) {
-        wall?.updateWorldMatrix(true, false);
+  for (const collidableObject of collidableObjects) {
+    if (collidableObject instanceof THREE.Mesh) {
+      if (collidableObject.updateWorldMatrix) {
+        collidableObject?.updateWorldMatrix(true, false);
       }
-      if (!wall.geometry.boundingBox) {
-        wall.geometry.computeBoundingBox();
+      if (!collidableObject.geometry.boundingBox) {
+        collidableObject.geometry.computeBoundingBox();
       }
       wallWorldAABB
-        .copy(wall.geometry.boundingBox)
-        .applyMatrix4(wall.matrixWorld);
+        .copy(collidableObject.geometry.boundingBox)
+        .applyMatrix4(collidableObject.matrixWorld);
 
       if (playerWorldAABB.intersectsBox(wallWorldAABB)) {
         return true;
       }
-    } else if (wall instanceof THREE.Object3D) {
-      const box = new THREE.Box3().setFromObject(wall);
+    } else if (collidableObject instanceof THREE.Object3D) {
+      const box = new THREE.Box3().setFromObject(collidableObject);
 
       if (playerWorldAABB.intersectsBox(box)) {
         return true;

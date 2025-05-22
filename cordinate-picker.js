@@ -17,8 +17,9 @@ export function enableCoordinatePicking(scene, camera, controls, options = {}) {
 
         if (intersects.length > 0) {
             const point = intersects[0].point;
-            console.log(`📌 Mess Point: new THREE.Vector3(${point.x.toFixed(2)}, ${point.y.toFixed(2)}, ${point.z.toFixed(2)}),`);
 
+            console.log(`📌 Mess Point:`);
+            console.log(`"position": {  "x": ${point.x.toFixed(2)},  "y": ${point.y.toFixed(2)},  "z": ${point.z.toFixed(2)}},`);
             const marker = new THREE.Mesh(
                 new THREE.SphereGeometry(0.05, 8, 8),
                 new THREE.MeshBasicMaterial({ color: 0xff0000 })
