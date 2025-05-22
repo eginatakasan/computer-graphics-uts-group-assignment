@@ -2,37 +2,55 @@
     "pan": {
         "dirtyModel": "/models/pan_dirty.glb",
         "cleanModel": "/models/pan_clean.glb",
-        "dirtyScale": 0.4,
-        "cleanScale": 0.4
+        "dirtyScale": 0.7,
+        "cleanScale": 0.7
     },
     "bowl": {
         "dirtyModel": "/models/bowl_dirty.glb",
         "cleanModel": "/models/bowl_clean.glb",
-        "dirtyScale": 0.4,
-        "cleanScale": 0.4
+        "dirtyScale": 0.7,
+        "cleanScale": 0.7
     },
     "plate": {
         "dirtyModel": "/models/plate_dirty.glb",
         "cleanModel": "/models/plate_clean.glb",
-        "dirtyScale": 0.4,
-        "cleanScale": 0.4
+        "dirtyScale": 0.7,
+        "cleanScale": 0.7
     },
     "plate_stack": {
         "dirtyModel": "/models/Stack_Plates.glb",
         "cleanModel": "",
-        "dirtyScale": 1.4,
-        "cleanScale": 1.4
+        "dirtyScale": 1.8,
+        "cleanScale": 1.8
     },
     "bowl_stack": {
         "dirtyModel": "/models/Stack_Bowls.glb",
         "cleanModel": "",
-        "dirtyScale": 1.4,
-        "cleanScale": 1.4
+        "dirtyScale": 1.8,
+        "cleanScale": 1.8
     },
     "clothes": {
         "dirtyModel": "/models/clothes_mess.glb",
         "cleanModel": "/models/clothes_pile.glb",
         "dirtyScale": 0.5,
         "cleanScale": 1.3
+    },
+    "ham": {
+        "dirtyModel": "/models/ham.glb",
+        "cleanModel": "",
+        "dirtyScale": 0.7,
+        "cleanScale": 0.7
+    },
+    "half_apple": {
+        "dirtyModel": "/models/half_apple.glb",
+        "cleanModel": "",
+        "dirtyScale": 1.5,
+        "cleanScale": 1.5
+    },
+    "candy_wrapper": {
+        "dirtyModel": "/models/candy_wrapper.glb",
+        "cleanModel": "",
+        "dirtyScale": 1.5,
+        "cleanScale": 1.5
     }
 }

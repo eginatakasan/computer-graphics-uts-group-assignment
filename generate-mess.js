@@ -10,7 +10,7 @@ const gltfLoader = new GLTFLoader();
  */
 export function loadPaperBall(scene, position, interactables = []) {
     const modelPath = '/models/paper_ball1.glb';
-    const scale = 0.5;
+    const scale = 0.25;
 
     gltfLoader.load(modelPath, (gltf) => {
         const paperGroup = gltf.scene;
@@ -38,6 +38,39 @@ export function loadPaperBall(scene, position, interactables = []) {
     });
 }
 
+
+/**
+ * Loads and places a random Soda can model at the given position.
+ */
+export function loadSodaCan(scene, position, interactables = []) {
+    const modelPath = '/models/soda_can.glb';
+    const scale = 2.5;
+
+    gltfLoader.load(modelPath, (gltf) => {
+        const paperGroup = gltf.scene;
+
+        paperGroup.position.set(position.x, position.y + 0.15, position.z);
+        paperGroup.rotation.y = Math.random() * Math.PI * 2;
+        paperGroup.scale.setScalar(scale);
+
+        // Traverse and register all mesh children as interactable
+        paperGroup.traverse((child) => {
+            if (child.isMesh) {
+                child.userData.isMess = true;
+                child.userData.type = 'sodaCan';
+                child.userData.isInteractable = true;
+                child.userData.object_type = 'sodaCan';
+                child.userData.ownerGroup = paperGroup;
+
+                interactables.push(child); // ✅ Now mesh can be interacted with
+            }
+        });
+
+        scene.add(paperGroup);
+    }, undefined, (error) => {
+        console.error("❌ Failed to load paper ball model:", error);
+    });
+}
 
 // Organic stain mesh
 export function createStainMesh(position, location = "floor", options = {}, interactables = []) {
@@ -100,8 +133,6 @@ function pickRandomPositions(arr, count) {
     return arr.sort(() => 0.5 - Math.random()).slice(0, count);
 }
 
-
-
 //dust bunnies?
 export function createDustBunny(position, interactables = []) {
     const group = new THREE.Group();
@@ -136,7 +167,7 @@ export function createDustBunny(position, interactables = []) {
         group.add(mesh);
     }
 
-    group.position.set(position.x, position.y + 0.01, position.z);
+    group.position.set(position.x, position.y + 0.1, position.z);
     group.scale.setScalar(0.8);
 
     // Traverse and mark individual meshes as interactable
@@ -270,11 +301,13 @@ export function generateRoomFloorMesses(
                     point.position.y,
                     point.position.z
                 );
-                const messTypes = ['stain', 'paperBall', 'dustBunny'];
+                const messTypes = ['stain', 'paperBall', 'dustBunny', 'sodaCan'];
                 const type = messTypes[Math.floor(Math.random() * messTypes.length)];
 
                 if (type === 'paperBall') {
                     loadPaperBall(scene, pos, interactableObjects);
+                } else if (type == 'sodaCan') {
+                    loadSodaCan(scene, pos, interactableObjects);
                 } else if (type === 'dustBunny') {
                     const { group, proxy } = createDustBunny(pos, interactableObjects);
                     scene.add(group);
@@ -284,10 +317,10 @@ export function generateRoomFloorMesses(
                     scene.add(stain);
                 }
 
-                console.log(`🧽 ${type} placed on floor at (${pos.x}, ${pos.y}, ${pos.z})`);
+                //console.log(`🧽 ${type} placed on floor at (${pos.x}, ${pos.y}, ${pos.z})`);
             });
 
-            console.log(`✅ Generated ${count} floor messes in room: ${roomId}`);
+            //console.log(`✅ Generated ${count} floor messes in room: ${roomId}`);
         })
         .catch(err => console.error("Error loading mess positions:", err));
 }
@@ -333,10 +366,10 @@ export function generateRoomWallMesses(
                 const stain = createStainMesh(pos, point.location, {}, interactableObjects);
                 scene.add(stain);
 
-                console.log(`🧱 Wall stain ${index + 1} at ${point.location}`, pos);
+                //console.log(`🧱 Wall stain ${index + 1} at ${point.location}`, pos);
             });
 
-            console.log(`✅ Placed ${count} wall stains in room: ${roomId}`);
+            //console.log(`✅ Placed ${count} wall stains in room: ${roomId}`);
         })
         .catch(err => console.error("Error loading wall stains:", err));
 }
@@ -345,31 +378,70 @@ export function generateRoomObjectMesses(scene, roomId, count = 1, jsonPath, int
     if (roomId === "kitchen") {
         generateKitchenMess(scene, jsonPath, interactables); // kitchen is custom
     } else {
-        generateGenericObjectMesses(scene, roomId, count, jsonPath, interactables);
+        // generateGenericObjectMesses(scene, roomId, count, jsonPath, interactables);
+        generateGenericObjectMesses(scene, count, jsonPath, interactables);
     }
 }
 
 
-async function generateGenericObjectMesses(scene, roomId, count = 1, jsonPath, interactables) {
-    const positions = await fetch(jsonPath).then(r => r.json());
-    const allPoints = positions[roomId]?.filter(p => p.location === "object") || [];
+// async function generateGenericObjectMesses(scene, roomId, count = 1, jsonPath, interactables) {
+//     const positions = await fetch(jsonPath).then(r => r.json());
+//     const allPoints = positions[roomId]?.filter(p => p.location === "object") || [];
 
-    if (allPoints.length < count) {
-        console.warn(`⚠️ Requested ${count} object messes, but only ${allPoints.length} available.`);
-        count = allPoints.length;
+//     if (allPoints.length < count) {
+//         console.warn(`⚠️ Requested ${count} object messes, but only ${allPoints.length} available.`);
+//         count = allPoints.length;
+//     }
+
+//     const selected = pickRandomPositions(allPoints, count);
+
+//     selected.forEach(point => {
+//         const pos = new THREE.Vector3(point.position.x, point.position.y, point.position.z);
+//         const subtype = point.subtype;
+//         if (subtype) {
+//             loadSwappableMess(scene, subtype, pos, interactables);
+//         }
+//     });
+
+//     //console.log(`✅ Placed ${selected.length} object messes for room: '${roomId}'`);
+// }
+
+async function generateGenericObjectMesses(scene, count = 1, jsonPath, interactables) {
+    const positions = await fetch(jsonPath).then(r => r.json());
+
+    // 🔄 Collect ALL object-type points across rooms
+    const allPoints = Object.values(positions).flat().filter(p => p.location === "object");
+
+    // Separate clothes points
+    const clothesPoints = allPoints.filter(p => p.subtype === "clothes");
+
+    // Only include positions with subtype table or sofa
+    const tableSofaPoints = allPoints.filter(p => p.subtype === "table" || p.subtype === "sofa");
+
+    if (tableSofaPoints.length < count) {
+        console.warn(`⚠️ Requested ${count} table/sofa messes, but only ${tableSofaPoints.length} available.`);
+        count = tableSofaPoints.length;
     }
 
-    const selected = pickRandomPositions(allPoints, count);
+    // ✅ Load 1 random clothes mess (if any)
+    if (clothesPoints.length > 0) {
+        const chosenClothes = clothesPoints[Math.floor(Math.random() * clothesPoints.length)];
+        const pos = new THREE.Vector3(chosenClothes.position.x, chosenClothes.position.y, chosenClothes.position.z);
+        loadSwappableMess(scene, "clothes", pos, interactables);
+        //console.log(`👕 Loaded 1 clothes mess at`, pos);
+    }
 
-    selected.forEach(point => {
+    // ✅ For each of the selected table/sofa points, load a random food wrapper mess
+    const messOptions = ["ham", "half_apple", "candy_wrapper"];
+    const selectedOthers = pickRandomPositions(tableSofaPoints, count);
+    selectedOthers.forEach(point => {
         const pos = new THREE.Vector3(point.position.x, point.position.y, point.position.z);
-        const subtype = point.subtype;
-        if (subtype) {
-            loadSwappableMess(scene, subtype, pos, interactables);
-        }
+        const subtype = messOptions[Math.floor(Math.random() * messOptions.length)];
+        loadSwappableMess(scene, subtype, pos, interactables);
+        //console.log(`🍬 Loaded ${subtype} on ${point.subtype} at`, pos);
     });
 
-    console.log(`✅ Placed ${selected.length} object messes for room: '${roomId}'`);
+    //console.log(`✅ Finished generating messes: 1 clothes + ${count} table/sofa wrappers.`);
 }
 
 async function generateKitchenMess(scene, jsonPath, interactables) {

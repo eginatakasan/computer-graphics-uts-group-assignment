@@ -57,11 +57,39 @@ const settings = {
 init();
 animate();
 
-function setupInteractableObjects() {}
+function setupInteractableObjects() { }
 
-function highlightObject(object) {}
+function highlightObject(object) {
+  if (!object || !object.material) return;
 
-function unhighlightObject(object) {}
+  const mat = object.material;
+
+  // Case 1: emissive-supported material (e.g., MeshLambertMaterial)
+  if ('emissive' in mat) {
+    mat.userData = mat.userData || {};
+    mat.userData.originalEmissive = mat.emissive.getHex();
+    mat.emissive.setHex(0xffcc00); // yellow glow
+  }
+  // Case 2: fallback for basic materials
+  else if ('color' in mat) {
+    mat.userData = mat.userData || {};
+    mat.userData.originalColor = mat.color.getHex();
+    mat.color.setHex(0xff4444); // red tint
+  }
+}
+
+function unhighlightObject(object) {
+  if (!object || !object.material) return;
+
+  const mat = object.material;
+  const ud = mat.userData || {};
+
+  if ('emissive' in mat && ud.originalEmissive !== undefined) {
+    mat.emissive.setHex(ud.originalEmissive);
+  } else if ('color' in mat && ud.originalColor !== undefined) {
+    mat.color.setHex(ud.originalColor);
+  }
+}
 
 function highlightWithColor(object) {
   if (object && object.material && object.material.color) {
@@ -86,17 +114,68 @@ function handleObjectInteraction(objectType) {
   console.log("Player is looking at:", objectType);
 }
 
+// function handleMessInteraction(target) {
+//   const type = target.userData.object_type;
+
+//   if (type === "swappable") {
+//     const gltfLoader = new GLTFLoader();
+//     const swapPath = target.userData.modelSwap;
+//     const pos = target.userData.position || target.position;
+//     const scale = target.userData.cleanScale || 0.5;
+//     const groupToRemove = target.userData.parentGroup || target;
+
+//     scene.remove(groupToRemove);
+
+//     if (swapPath && swapPath.trim() !== "") {
+//       gltfLoader.load(swapPath, (gltf) => {
+//         const clean = gltf.scene;
+//         clean.position.copy(pos);
+//         clean.scale.setScalar(scale);
+//         clean.rotation.y = Math.random() * Math.PI * 2;
+//         scene.add(clean);
+//       });
+//     } else {
+//       console.log(
+//         `🧹 Removed mess '${target.userData.subtype}' with no clean model.`
+//       );
+//     }
+
+//     console.log(`✅ Swapped ${target.userData.subtype} to clean model.`);
+//   } else {
+//     const groupToRemove = target.userData.ownerGroup || target;
+//     scene.remove(groupToRemove);
+//     console.log(`🧼 Removed ${type} mess from scene.`);
+//   }
+// }
+
 function handleMessInteraction(target) {
   const type = target.userData.object_type;
+
+  // Define the actual object that was added to interactableObjects
+  const referenceToRemove = target.userData.ownerGroup || target.userData.parentGroup || target;
+
+  // Remove from scene
+  scene.remove(referenceToRemove);
+
+  // Remove from interactables
+  const index = interactableObjects.indexOf(target);
+  if (index !== -1) {
+    interactableObjects.splice(index, 1);
+  }
+
+  // Also check for proxy references like dust bunnies or others
+  if (target.userData.ownerGroup) {
+    const proxyIndex = interactableObjects.indexOf(target.userData.ownerGroup);
+    if (proxyIndex !== -1) {
+      interactableObjects.splice(proxyIndex, 1);
+    }
+  }
 
   if (type === "swappable") {
     const gltfLoader = new GLTFLoader();
     const swapPath = target.userData.modelSwap;
     const pos = target.userData.position || target.position;
     const scale = target.userData.cleanScale || 0.5;
-    const groupToRemove = target.userData.parentGroup || target;
-
-    scene.remove(groupToRemove);
 
     if (swapPath && swapPath.trim() !== "") {
       gltfLoader.load(swapPath, (gltf) => {
@@ -107,18 +186,15 @@ function handleMessInteraction(target) {
         scene.add(clean);
       });
     } else {
-      console.log(
-        `🧹 Removed mess '${target.userData.subtype}' with no clean model.`
-      );
+      console.log(`🧹 Removed mess '${target.userData.subtype}' with no clean model.`);
     }
 
     console.log(`✅ Swapped ${target.userData.subtype} to clean model.`);
   } else {
-    const groupToRemove = target.userData.ownerGroup || target;
-    scene.remove(groupToRemove);
     console.log(`🧼 Removed ${type} mess from scene.`);
   }
 }
+
 
 function loadPositions(path) {
   fetch(path)
@@ -187,6 +263,17 @@ function loadHouse() {
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
+
+  //object messes
+  generateRoomObjectMesses(
+    scene,
+    "house",
+    5,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //single-bedroom
   generateRoomFloorMesses(
     scene,
     "single-bedroom",
@@ -201,17 +288,85 @@ function loadHouse() {
     "mess-positions.json",
     interactableObjects
   );
-  generateRoomObjectMesses(
+
+  //living-room
+  generateRoomFloorMesses(
     scene,
-    "single-bedroom",
+    "living-room",
+    4,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "living-room",
+    2,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //study
+  generateRoomFloorMesses(
+    scene,
+    "study",
+    2,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "study",
     1,
     "mess-positions.json",
     interactableObjects
   );
+
+  //toilet
+  generateRoomFloorMesses(
+    scene,
+    "toilet",
+    2,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "toilet",
+    3,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //master
+  generateRoomFloorMesses(
+    scene,
+    "master",
+    3,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomWallMesses(
+    scene,
+    "master",
+    1,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //kitchen
   generateRoomObjectMesses(
     scene,
     "kitchen",
     1,
+    "mess-positions.json",
+    interactableObjects
+  );
+
+  //corridor
+  generateRoomFloorMesses(
+    scene,
+    "corridor",
+    3,
     "mess-positions.json",
     interactableObjects
   );
