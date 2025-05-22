@@ -315,6 +315,9 @@ export class ModelLoader {
                     placeableObjects.push(c);
 
                     if (c.name.includes("[Lamp]")) {
+                      if (!c.userData.isOn) {
+                        c.userData.isOn = false;
+                      }
                       c.traverse((child) => {
                         if (
                           child instanceof THREE.Mesh &&

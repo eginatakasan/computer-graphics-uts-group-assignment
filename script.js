@@ -54,10 +54,19 @@ const settings = {
   armProtrusion: 0.35, // How far arms stick out. NOTE: Not used in current AABB collision logic.
 };
 
+const LIGHT_DIMMED_ILLUMINATED_MESHES = ["FloorLamp1_2", "TableLamp1_2"];
+
+const LIGHT_FULLY_ILLUMINATED_MESHES = [
+  "FloorLamp1_3",
+  "TableLamp1_3",
+  "CeilingLamp1_2",
+  "CeilingLamp5_2",
+];
+
 init();
 animate();
 
-function setupInteractableObjects() { }
+function setupInteractableObjects() {}
 
 function highlightObject(object) {
   if (!object || !object.material) return;
@@ -65,13 +74,13 @@ function highlightObject(object) {
   const mat = object.material;
 
   // Case 1: emissive-supported material (e.g., MeshLambertMaterial)
-  if ('emissive' in mat) {
+  if ("emissive" in mat) {
     mat.userData = mat.userData || {};
     mat.userData.originalEmissive = mat.emissive.getHex();
     mat.emissive.setHex(0xffcc00); // yellow glow
   }
   // Case 2: fallback for basic materials
-  else if ('color' in mat) {
+  else if ("color" in mat) {
     mat.userData = mat.userData || {};
     mat.userData.originalColor = mat.color.getHex();
     mat.color.setHex(0xff4444); // red tint
@@ -81,12 +90,23 @@ function highlightObject(object) {
 function unhighlightObject(object) {
   if (!object || !object.material) return;
 
+  // If the object is a lamp, don't unhighlight it
+  if (
+    object.userData.object_type === "lamp" &&
+    object.userData.parentLamp.userData.isOn &&
+    (LIGHT_FULLY_ILLUMINATED_MESHES.includes(object.name) ||
+      LIGHT_DIMMED_ILLUMINATED_MESHES.includes(object.name))
+  ) {
+    object.material.emissive.set(0xffffff);
+    return;
+  }
+
   const mat = object.material;
   const ud = mat.userData || {};
 
-  if ('emissive' in mat && ud.originalEmissive !== undefined) {
+  if ("emissive" in mat && ud.originalEmissive !== undefined) {
     mat.emissive.setHex(ud.originalEmissive);
-  } else if ('color' in mat && ud.originalColor !== undefined) {
+  } else if ("color" in mat && ud.originalColor !== undefined) {
     mat.color.setHex(ud.originalColor);
   }
 }
@@ -100,6 +120,17 @@ function highlightWithColor(object) {
 }
 
 function unhighlightWithColor(object) {
+  // If the object is a lamp, don't unhighlight it
+  if (
+    object.userData.object_type === "lamp" &&
+    object.userData.parentLamp.userData.isOn &&
+    (LIGHT_FULLY_ILLUMINATED_MESHES.includes(object.name) ||
+      LIGHT_DIMMED_ILLUMINATED_MESHES.includes(object.name))
+  ) {
+    object.material.emissive.set(0xffffff);
+    return;
+  }
+
   if (object && object.material && object.material.color) {
     const originalColor = object.material.userData?.originalColor;
     if (originalColor !== undefined) {
@@ -110,7 +141,6 @@ function unhighlightWithColor(object) {
 
 function handleObjectInteraction(objectType) {
   // This function is called when an interactable object is being looked at.
-  // Add specific actions based on objectType here.
   console.log("Player is looking at:", objectType);
 }
 
@@ -152,7 +182,8 @@ function handleMessInteraction(target) {
   const type = target.userData.object_type;
 
   // Define the actual object that was added to interactableObjects
-  const referenceToRemove = target.userData.ownerGroup || target.userData.parentGroup || target;
+  const referenceToRemove =
+    target.userData.ownerGroup || target.userData.parentGroup || target;
 
   // Remove from scene
   scene.remove(referenceToRemove);
@@ -186,7 +217,9 @@ function handleMessInteraction(target) {
         scene.add(clean);
       });
     } else {
-      console.log(`🧹 Removed mess '${target.userData.subtype}' with no clean model.`);
+      console.log(
+        `🧹 Removed mess '${target.userData.subtype}' with no clean model.`
+      );
     }
 
     console.log(`✅ Swapped ${target.userData.subtype} to clean model.`);
@@ -195,6 +228,31 @@ function handleMessInteraction(target) {
   }
 }
 
+function turnOffLights(lamp) {
+  lamp.traverse((l) => {
+    if (l.type === "PointLight") {
+      l.visible = false;
+    } else if (l.type === "Mesh") {
+      l.material.emissive.set(0x000000);
+    }
+  });
+}
+
+function turnOnLights(lamp) {
+  lamp.traverse((l) => {
+    if (l.type === "PointLight") {
+      l.visible = true;
+    } else if (l.type === "Mesh") {
+      if (LIGHT_DIMMED_ILLUMINATED_MESHES.includes(l.name)) {
+        l.material.emissive.set(0xffffff);
+        l.material.emissiveIntensity = 0.2;
+      } else if (LIGHT_FULLY_ILLUMINATED_MESHES.includes(l.name)) {
+        l.material.emissive.set(0xffffff);
+        l.material.emissiveIntensity = 1;
+      }
+    }
+  });
+}
 
 function loadPositions(path) {
   fetch(path)
@@ -214,6 +272,24 @@ function loadPositions(path) {
           }
           child.traverse((c) => {
             if (c.name.includes("[placeableObject]")) {
+              if (c.name.includes("[Lamp]")) {
+                // Initialize lamp state
+                c.userData.isOn = false;
+                c.userData.object_type = "lamp";
+                c.userData.isInteractable = true;
+                turnOffLights(c);
+
+                // Add both the group and its mesh children to interactable objects
+                interactableObjects.push(c);
+                c.traverse((child) => {
+                  if (child instanceof THREE.Mesh) {
+                    child.userData.object_type = "lamp";
+                    child.userData.isInteractable = true;
+                    child.userData.parentLamp = c; // Reference to parent lamp group
+                    interactableObjects.push(child);
+                  }
+                });
+              }
               placeableObjects.push(c);
             } else if (c.name.includes("[Room]")) {
               roomObjects.push(c);
@@ -250,8 +326,8 @@ function loadPositions(path) {
         }
       });
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-      scene.add(new THREE.DirectionalLight(0xffffff, 0.7));
+      // scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+      // scene.add(new THREE.DirectionalLight(0xffffff, 0.7));
     })
     .catch((error) => {
       console.error("Error loading scene:", error);
@@ -259,7 +335,7 @@ function loadPositions(path) {
 }
 
 function loadHouse() {
-  loadPositions("/positions/houseWithLights.json");
+  loadPositions("/positions/scene(33).json");
   console.log("House loaded", scene.children);
 
   //calling generate mess function here
@@ -525,7 +601,7 @@ function init() {
   renderer.setPixelRatio(window.devicePixelRatio);
   document.body.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
   scene.add(ambientLight);
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
@@ -593,6 +669,27 @@ function init() {
       highlightedObject &&
       !isInteracting
     ) {
+      // If it's a lamp (either group or mesh), handle it immediately without progress bar
+      if (highlightedObject.userData.object_type === "lamp") {
+        const lamp = highlightedObject;
+        if (lamp) {
+          // Get the actual lamp group (either the object itself or its parent)
+          const lampGroup = lamp.userData.parentLamp || lamp;
+
+          // Toggle the lamp state
+          lampGroup.userData.isOn = !lampGroup.userData.isOn;
+
+          // Update the light state
+          if (lampGroup.userData.isOn) {
+            turnOnLights(lampGroup);
+          } else {
+            turnOffLights(lampGroup);
+          }
+        }
+        return;
+      }
+
+      // For other objects, use the progress bar
       isInteracting = true;
       interactionStartTime = performance.now();
       interactionTarget = highlightedObject;
@@ -706,7 +803,6 @@ function animate() {
       highlightedObject !== currentTarget &&
       !isInteracting
     ) {
-      // unhighlightObject(highlightedObject);
       const mat = highlightedObject.material;
       if (mat && "emissive" in mat) {
         unhighlightObject(highlightedObject);
