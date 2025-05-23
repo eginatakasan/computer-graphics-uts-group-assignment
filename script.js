@@ -252,8 +252,8 @@ function loadPositions(path) {
         }
       });
 
-      scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-      scene.add(new THREE.DirectionalLight(0xffffff, 0.7));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+      // scene.add(new THREE.DirectionalLight(0xffffff, 0.7));
     })
     .catch((error) => {
       console.error("Error loading scene:", error);
@@ -360,6 +360,13 @@ function loadHouse() {
     scene,
     "kitchen",
     1,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomFloorMesses(
+    scene,
+    "kitchen",
+    5,
     "mess-positions.json",
     interactableObjects
   );
@@ -527,8 +534,8 @@ function init() {
   renderer.setPixelRatio(window.devicePixelRatio);
   document.body.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
-  scene.add(ambientLight);
+  // const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  // scene.add(ambientLight);
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
   directionalLight.position.set(5, 10, 7.5);

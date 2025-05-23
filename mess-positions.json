@@ -151,6 +151,78 @@
             },
             "location": "table-top",
             "subtype": "table-top"
+        },
+        {
+            "position": {
+                "x": 2.80,
+                "y": 0.00,
+                "z": -8.42
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": 6.18,
+                "y": 0.00,
+                "z": -3.88
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": 2.03,
+                "y": 0.00,
+                "z": -4.50
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": 4.55,
+                "y": 0.00,
+                "z": -5.08
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": 4.54,
+                "y": -0.00,
+                "z": -10.30
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": -1.89,
+                "y": 0.00,
+                "z": -5.00
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": -2.02,
+                "y": -0.00,
+                "z": -9.33
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": -5.74,
+                "y": -0.00,
+                "z": -10.44
+            },
+            "location": "floor"
+        },
+        {
+            "position": {
+                "x": -6.32,
+                "y": 0.00,
+                "z": -6.82
+            },
+            "location": "floor"
         }
     ],
     "living-room": [
