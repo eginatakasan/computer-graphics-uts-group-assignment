@@ -9,6 +9,8 @@ import {
   generateRoomObjectMesses,
 } from "./generate-mess.js";
 
+let gameStarted = false;
+
 let scene, camera, renderer, controls, mixer;
 const animationActions = {};
 let activeAction;
@@ -547,6 +549,17 @@ function init() {
     .name("Min Gap to Wall");
   gui.add(settings, "armProtrusion", 0.0, 1.0, 0.01).name("Arm Protrusion");
 
+  // Setup Start Modal button click
+  const modal = document.getElementById("startModal");
+  const messCounter = document.getElementById("messCounter");
+
+  document.getElementById("startGameBtn").addEventListener("click", () => {
+    modal.style.display = "none";
+    messCounter.style.display = "block";
+    gameStarted = true;
+    controls.lock(); // lock view
+  });
+
   // Progress Bar UI
   progressBarContainer = document.createElement("div");
   progressBarContainer.style.position = "fixed";
@@ -571,6 +584,10 @@ function init() {
 
   loadHouse();
   setupInteractableObjects();
+
+  setTimeout(() => {
+    document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
+  }, 1000); // delay to ensure messes loaded  
 
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
@@ -629,6 +646,10 @@ function init() {
       );
     }
   });
+
+  if (window.location.pathname.includes('game.html')) {
+    document.querySelector('.lil-gui')?.remove(); // Or gui.destroy();
+  }
 }
 
 function onKeyDown(event) {
@@ -752,10 +773,11 @@ function animate() {
         if (progress >= 1) {
           // handleClothesInteraction(currentTarget);
           handleMessInteraction(currentTarget);
-          console.log(
-            "Interaction complete with:",
-            interactionTarget.userData.object_type
-          );
+          console.log("Interaction complete with:", interactionTarget.userData.object_type);
+
+          // Update mess counter
+          document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
+
           // Note: cancelInteraction() will call switchToDefaultAnimation()
           cancelInteraction();
           highlightedObject = null;

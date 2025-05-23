@@ -1,0 +1,111 @@
+<!-- game.html -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>The House Keeper</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #startModal {
+            backdrop-filter: blur(6px);
+            background: rgba(0, 0, 0, 0.5);
+            transition: all 0.4s ease;
+        }
+
+        #startGameBtn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            background: #ffffff;
+            color: #333;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        #startGameBtn:hover {
+            background: #f0f0f0;
+            transform: scale(1.05);
+        }
+
+        #messCounter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(40, 40, 40, 0.85);
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(6px);
+            z-index: 99;
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="startModal" style="
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 100;
+  ">
+        <h1 style="
+        font-family: 'Georgia', serif;
+        font-size: 48px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      ">The House Keeper</h1>
+        <button id="startGameBtn" style="padding: 12px 24px; font-size: 16px;">Start Game</button>
+    </div>
+
+    <div id="messCounter" style="
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    color: white;
+    font-size: 18px;
+    background: rgba(0,0,0,0.5);
+    padding: 8px 12px;
+    border-radius: 8px;
+    z-index: 99;
+    display: none;
+  ">Mess Counter: 0</div>
+
+    <script type="importmap">
+        {
+            "imports": {
+              "three": "https://unpkg.com/three@0.176.0/build/three.module.js",
+              "three/examples/jsm/controls/PointerLockControls.js": "https://unpkg.com/three@0.176.0/examples/jsm/controls/PointerLockControls.js",
+              "three/examples/jsm/controls/OrbitControls.js": "https://unpkg.com/three@0.176.0/examples/jsm/controls/OrbitControls.js",
+              "three/examples/jsm/loaders/GLTFLoader.js": "https://unpkg.com/three@0.176.0/examples/jsm/loaders/GLTFLoader.js",
+              "lil-gui": "https://unpkg.com/lil-gui@0.19.1/dist/lil-gui.esm.js"
+            }
+          }
+  </script>
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>

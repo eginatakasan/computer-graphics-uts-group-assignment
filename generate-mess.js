@@ -136,10 +136,10 @@ function pickRandomPositions(arr, count) {
 //dust bunnies?
 export function createDustBunny(position, interactables = []) {
     const group = new THREE.Group();
-    const strandCount = 40;
+    const strandCount = 35;
     const colors = [0x2e2e2e, 0x3a3a3a, 0x4b4b4b];
 
-    function randomSpherePoint(radius = 0.2) {
+    function randomEllipsoidPoint(radius = 0.25) {
         let v;
         do {
             v = new THREE.Vector3(
@@ -148,26 +148,39 @@ export function createDustBunny(position, interactables = []) {
                 Math.random() * 2 - 1
             );
         } while (v.lengthSq() > 1);
+
+        // Slightly squashed sphere for flatter look
+        v.y *= 0.4; // squash the height to 40%
         return v.multiplyScalar(radius);
     }
 
     for (let i = 0; i < strandCount; i++) {
-        const controlPoints = Array.from({ length: 8 }).map(() => randomSpherePoint(0.2));
-        const curve = new THREE.CatmullRomCurve3(controlPoints);
-        curve.tension = 0.5;
+        // const controlPoints = Array.from({ length: 8 }).map(() => randomEllipsoidPoint());
+        const controlPoints = [];
 
-        const geometry = new THREE.TubeGeometry(curve, 50, 0.002, 4, false);
+        for (let i = 0; i < 8; i++) {
+            const p = randomEllipsoidPoint();
+            p.y += Math.sin(i * 0.5) * 0.02; // adds a wave
+            controlPoints.push(p);
+        }
+
+        const curve = new THREE.CatmullRomCurve3(controlPoints);
+        curve.tension = 0.8;
+
+        const geometry = new THREE.TubeGeometry(curve, 32, 0.003, 4, false);
         const material = new THREE.MeshStandardMaterial({
             color: colors[Math.floor(Math.random() * colors.length)],
             roughness: 1,
             metalness: 0
         });
 
-        const mesh = new THREE.Mesh(geometry, material);
+        // const mesh = new THREE.Mesh(geometry, material);
+        const mesh = new THREE.Mesh(geometry, HairShaderMaterial.clone());
         group.add(mesh);
     }
 
-    group.position.set(position.x, position.y + 0.1, position.z);
+
+    group.position.set(position.x, position.y + 0.2, position.z);
     group.scale.setScalar(0.8);
 
     // Traverse and mark individual meshes as interactable
