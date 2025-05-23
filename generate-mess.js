@@ -75,23 +75,38 @@ export function loadSodaCan(scene, position, interactables = []) {
 // Organic stain mesh
 export function createStainMesh(position, location = "floor", options = {}, interactables = []) {
     const {
-        radius = 0.4,
-        points = 16,
-        noiseFactor = 0.4,
+        radius = 0.3 + Math.random() * 0.3,
+        points = 20, // More points = smoother edge
+        noiseFactor = 0.3,
         color = Math.random() < 0.5 ? 0x5c3317 : 0x7b1113
     } = options;
 
     const shape = new THREE.Shape();
     const angleStep = (Math.PI * 2) / points;
+    const vertices = [];
 
     for (let i = 0; i <= points; i++) {
         const angle = i * angleStep;
         const r = radius * (1 - noiseFactor / 2 + Math.random() * noiseFactor);
         const x = Math.cos(angle) * r;
         const y = Math.sin(angle) * r;
-        if (i === 0) shape.moveTo(x, y);
-        else shape.lineTo(x, y);
+        vertices.push(new THREE.Vector2(x, y));
     }
+
+    // Use quadratic curves between points
+    shape.moveTo(vertices[0].x, vertices[0].y);
+    for (let i = 1; i < vertices.length - 1; i++) {
+        const midX = (vertices[i].x + vertices[i + 1].x) / 2;
+        const midY = (vertices[i].y + vertices[i + 1].y) / 2;
+        shape.quadraticCurveTo(vertices[i].x, vertices[i].y, midX, midY);
+    }
+    shape.quadraticCurveTo(
+        vertices[vertices.length - 1].x,
+        vertices[vertices.length - 1].y,
+        vertices[0].x,
+        vertices[0].y
+    );
+    shape.closePath();
 
     const geometry = new THREE.ShapeGeometry(shape);
     const material = new THREE.MeshBasicMaterial({
@@ -104,24 +119,25 @@ export function createStainMesh(position, location = "floor", options = {}, inte
 
     const stain = new THREE.Mesh(geometry, material);
 
-    // Align based on location
     if (location === "floor") {
         stain.rotation.x = -Math.PI / 2;
         stain.position.set(position.x, position.y + 0.01, position.z);
     } else if (location === "faceWall") {
         stain.rotation.z = Math.PI / 2;
-        stain.position.set(position.x, position.y, position.z + 0.01); // push off wall
+        stain.position.set(position.x, position.y, position.z + 0.01);
     } else if (location === "sideWall") {
         stain.rotation.z = Math.PI / 2;
         stain.rotation.y = Math.PI / 2;
         stain.position.set(position.x + 0.01, position.y, position.z);
     }
 
-    stain.userData.isMess = true;
-    stain.userData.type = "stain";
-    stain.userData.subtype = "wallStain";
-    stain.userData.isInteractable = true;
-    stain.userData.object_type = "stain";
+    stain.userData = {
+        isMess: true,
+        type: "stain",
+        subtype: "wallStain",
+        isInteractable: true,
+        object_type: "stain"
+    };
 
     interactables.push(stain);
     return stain;

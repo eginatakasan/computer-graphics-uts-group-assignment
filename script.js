@@ -553,12 +553,14 @@ function init() {
   const modal = document.getElementById("startModal");
   const messCounter = document.getElementById("messCounter");
 
-  document.getElementById("startGameBtn").addEventListener("click", () => {
-    modal.style.display = "none";
-    messCounter.style.display = "block";
-    gameStarted = true;
-    controls.lock(); // lock view
-  });
+  if (window.location.pathname.includes('game.html')) {
+    document.getElementById("startGameBtn").addEventListener("click", () => {
+      modal.style.display = "none";
+      messCounter.style.display = "block";
+      gameStarted = true;
+      controls.lock(); // lock view
+    });
+  }
 
   // Progress Bar UI
   progressBarContainer = document.createElement("div");
@@ -585,10 +587,11 @@ function init() {
   loadHouse();
   setupInteractableObjects();
 
-  setTimeout(() => {
-    document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
-  }, 1000); // delay to ensure messes loaded  
-
+  if (window.location.pathname.includes('game.html')) {
+    setTimeout(() => {
+      document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
+    }, 1000); // delay to ensure messes loaded  
+  }
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
 

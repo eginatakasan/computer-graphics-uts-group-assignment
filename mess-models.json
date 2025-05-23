@@ -8,8 +8,8 @@
     "bowl": {
         "dirtyModel": "/models/bowl_dirty.glb",
         "cleanModel": "/models/bowl_clean.glb",
-        "dirtyScale": 0.7,
-        "cleanScale": 0.7
+        "dirtyScale": 0.5,
+        "cleanScale": 0.5
     },
     "plate": {
         "dirtyModel": "/models/plate_dirty.glb",
