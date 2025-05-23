@@ -9,6 +9,8 @@ import {
   generateRoomObjectMesses,
 } from "./generate-mess.js";
 
+let gameStarted = false;
+
 let scene, camera, renderer, controls, mixer;
 const animationActions = {};
 let activeAction;
@@ -326,7 +328,7 @@ function loadPositions(path) {
         }
       });
 
-      // scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.2));
       // scene.add(new THREE.DirectionalLight(0xffffff, 0.7));
     })
     .catch((error) => {
@@ -434,6 +436,13 @@ function loadHouse() {
     scene,
     "kitchen",
     1,
+    "mess-positions.json",
+    interactableObjects
+  );
+  generateRoomFloorMesses(
+    scene,
+    "kitchen",
+    5,
     "mess-positions.json",
     interactableObjects
   );
@@ -601,8 +610,8 @@ function init() {
   renderer.setPixelRatio(window.devicePixelRatio);
   document.body.appendChild(renderer.domElement);
 
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
-  scene.add(ambientLight);
+  // const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  // scene.add(ambientLight);
 
   const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
   directionalLight.position.set(5, 10, 7.5);
@@ -622,6 +631,19 @@ function init() {
     .add(settings, "cameraBodyRadius", 0.05, 1.0, 0.01)
     .name("Min Gap to Wall");
   gui.add(settings, "armProtrusion", 0.0, 1.0, 0.01).name("Arm Protrusion");
+
+  // Setup Start Modal button click
+  const modal = document.getElementById("startModal");
+  const messCounter = document.getElementById("messCounter");
+
+  if (window.location.pathname.includes("game.html")) {
+    document.getElementById("startGameBtn").addEventListener("click", () => {
+      modal.style.display = "none";
+      messCounter.style.display = "block";
+      gameStarted = true;
+      controls.lock(); // lock view
+    });
+  }
 
   // Progress Bar UI
   progressBarContainer = document.createElement("div");
@@ -648,6 +670,13 @@ function init() {
   loadHouse();
   setupInteractableObjects();
 
+  if (window.location.pathname.includes("game.html")) {
+    setTimeout(() => {
+      document.getElementById(
+        "messCounter"
+      ).textContent = `Mess Counter: ${interactableObjects.length}`;
+    }, 1000); // delay to ensure messes loaded
+  }
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
 
@@ -726,6 +755,10 @@ function init() {
       );
     }
   });
+
+  if (window.location.pathname.includes("game.html")) {
+    document.querySelector(".lil-gui")?.remove(); // Or gui.destroy();
+  }
 }
 
 function onKeyDown(event) {
@@ -852,6 +885,12 @@ function animate() {
             "Interaction complete with:",
             interactionTarget.userData.object_type
           );
+
+          // Update mess counter
+          document.getElementById(
+            "messCounter"
+          ).textContent = `Mess Counter: ${interactableObjects.length}`;
+
           // Note: cancelInteraction() will call switchToDefaultAnimation()
           cancelInteraction();
           highlightedObject = null;
