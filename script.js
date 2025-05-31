@@ -890,9 +890,9 @@ function animate() {
           );
 
           // Update mess counter
-          document.getElementById(
-            "messCounter"
-          ).textContent = `Mess Counter: ${interactableObjects.length}`;
+          document.getElementById("messCounter").textContent = `Mess Counter: ${
+            interactableObjects.filter((obj) => obj.userData.isMess).length
+          }`;
 
           // Note: cancelInteraction() will call switchToDefaultAnimation()
           cancelInteraction();
