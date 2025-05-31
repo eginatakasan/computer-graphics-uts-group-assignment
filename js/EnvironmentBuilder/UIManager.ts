@@ -16,7 +16,7 @@ export class UIManager {
   private toolsContainer: HTMLDivElement;
   private roomToolElement: HTMLButtonElement;
   private doorButtonElement: HTMLButtonElement;
-  private deleteButtonElement: HTMLButtonElement;
+  // private deleteButtonElement: HTMLButtonElement;
   private boxButtonElement: HTMLButtonElement;
   private lightsButtonElement: HTMLButtonElement;
   private canvas: HTMLCanvasElement;
@@ -36,7 +36,6 @@ export class UIManager {
   public isRoomToolActive: boolean = false;
   public isDoorPlacementActive: boolean = false;
   public isDeleteToolActive: boolean = false;
-  public isBoxPlacementActive: boolean = false;
   public isLightsPlacementActive: boolean = false;
   public isRoomsSelectable: boolean = false;
   public modelScale: number = 1.2;
@@ -69,6 +68,10 @@ export class UIManager {
     this.stateManager.subscribe("ceilingVisible", () => {
       this.updateCeilingVisibility();
     });
+
+    this.stateManager.subscribe("roomsSelectable", () => {
+      this.updateObjectList();
+    });
   }
 
   private setupGUI(): void {
@@ -89,7 +92,7 @@ export class UIManager {
     // Add ceiling visibility toggle
     const viewFolder = this.gui.addFolder("View Settings");
     viewFolder
-      .add({ ceilingVisible: true }, "ceilingVisible")
+      .add({ ceilingVisible: false }, "ceilingVisible")
       .name("Show Ceiling")
       .onChange((value) => {
         this.stateManager.setCeilingVisible(value);
@@ -138,7 +141,6 @@ export class UIManager {
       .onChange((value) => {
         this.isRoomsSelectable = value;
         this.stateManager.setRoomsSelectable(value);
-        console.log("Rooms selectable:", this.isRoomsSelectable);
       });
   }
 
@@ -198,6 +200,7 @@ export class UIManager {
   }
 
   public updateObjectList(): void {
+    console.log("Updating object list");
     if (!this.objectListContainer) return;
 
     const roomListElement =
@@ -209,8 +212,22 @@ export class UIManager {
     roomListElement.innerHTML = "";
     listElement.innerHTML = "";
 
+    // Show/hide room list based on selectableRooms toggle
+    const roomTitle = this.objectListContainer.querySelector(
+      "h3:first-child"
+    ) as HTMLElement;
+    if (roomTitle) {
+      roomTitle.style.display = this.isRoomsSelectable ? "block" : "none";
+    }
+    (roomListElement as HTMLElement).style.display = this.isRoomsSelectable
+      ? "block"
+      : "none";
+
+    console.log(roomListElement);
+
     // Add room objects to the room list
     if (
+      this.isRoomsSelectable &&
       this.stateManager.roomObjects &&
       this.stateManager.roomObjects.length > 0
     ) {
@@ -446,13 +463,6 @@ export class UIManager {
     // Select new object
     this.stateManager.setSelectedObject(object);
 
-    // Highlight the selected object
-    object.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.material.emissive.set(0x00ff00);
-      }
-    });
-
     // Update the object scale folder
     this.createObjectScaleFolder(object);
 
@@ -547,32 +557,32 @@ export class UIManager {
     });
 
     // Add Box Placement button
-    this.boxButtonElement = document.createElement("button");
-    this.boxButtonElement.id = "box-tool";
-    this.boxButtonElement.textContent = "Place Box";
-    this.boxButtonElement.style.marginTop = "10px";
-    this.roomToolElement.parentNode?.insertBefore(
-      this.boxButtonElement,
-      this.roomToolElement.nextSibling
-    );
+    // this.boxButtonElement = document.createElement("button");
+    // this.boxButtonElement.id = "box-tool";
+    // this.boxButtonElement.textContent = "Place Box";
+    // this.boxButtonElement.style.marginTop = "10px";
+    // this.roomToolElement.parentNode?.insertBefore(
+    //   this.boxButtonElement,
+    //   this.roomToolElement.nextSibling
+    // );
 
-    this.boxButtonElement.addEventListener("click", () => {
-      this.toggleBoxPlacement();
-    });
+    // this.boxButtonElement.addEventListener("click", () => {
+    //   this.toggleBoxPlacement();
+    // });
 
     // Add Delete Tool button
-    this.deleteButtonElement = document.createElement("button");
-    this.deleteButtonElement.id = "delete-tool";
-    this.deleteButtonElement.textContent = "Delete Tool";
-    this.deleteButtonElement.style.marginTop = "10px";
-    this.roomToolElement.parentNode?.insertBefore(
-      this.deleteButtonElement,
-      this.roomToolElement.nextSibling
-    );
+    // this.deleteButtonElement = document.createElement("button");
+    // this.deleteButtonElement.id = "delete-tool";
+    // this.deleteButtonElement.textContent = "Delete Tool";
+    // this.deleteButtonElement.style.marginTop = "10px";
+    // this.roomToolElement.parentNode?.insertBefore(
+    //   this.deleteButtonElement,
+    //   this.roomToolElement.nextSibling
+    // );
 
-    this.deleteButtonElement.addEventListener("click", () => {
-      this.toggleDeleteTool();
-    });
+    // this.deleteButtonElement.addEventListener("click", () => {
+    //   this.toggleDeleteTool();
+    // });
 
     // Add Door Placement button
     this.doorButtonElement = document.createElement("button");
@@ -599,7 +609,7 @@ export class UIManager {
     this.isRoomToolActive = !this.isRoomToolActive;
     this.isDoorPlacementActive = false;
     this.isDeleteToolActive = false;
-    this.isBoxPlacementActive = false;
+    // this.isBoxPlacementActive = false;
 
     this.updateButtonStyles();
     this.controller.setDragControlsEnabled(!this.isRoomToolActive);
@@ -612,7 +622,7 @@ export class UIManager {
     this.isRoomToolActive = false;
     this.isDeleteToolActive = false;
     this.isDoorPlacementActive = !this.isDoorPlacementActive;
-    this.isBoxPlacementActive = false;
+    // this.isBoxPlacementActive = false;
 
     this.updateButtonStyles();
     this.controller.setDragControlsEnabled(!this.isDoorPlacementActive);
@@ -624,7 +634,7 @@ export class UIManager {
     this.isDeleteToolActive = !this.isDeleteToolActive;
     this.isRoomToolActive = false;
     this.isDoorPlacementActive = false;
-    this.isBoxPlacementActive = false;
+    // this.isBoxPlacementActive = false;
 
     this.updateButtonStyles();
     this.canvas.style.cursor = this.isDeleteToolActive
@@ -635,27 +645,27 @@ export class UIManager {
     this.stateManager.setDeleteToolActive(this.isDeleteToolActive);
   }
 
-  public toggleBoxPlacement(): void {
-    this.isBoxPlacementActive = !this.isBoxPlacementActive;
-    this.isRoomToolActive = false;
-    this.isDoorPlacementActive = false;
-    this.isDeleteToolActive = false;
+  // public toggleBoxPlacement(): void {
+  //   this.isBoxPlacementActive = !this.isBoxPlacementActive;
+  //   this.isRoomToolActive = false;
+  //   this.isDoorPlacementActive = false;
+  //   this.isDeleteToolActive = false;
 
-    this.updateButtonStyles();
-    this.controller.setDragControlsEnabled(!this.isBoxPlacementActive);
-    this.canvas.style.cursor = this.isBoxPlacementActive
-      ? "crosshair"
-      : "default";
+  //   this.updateButtonStyles();
+  //   this.controller.setDragControlsEnabled(!this.isBoxPlacementActive);
+  //   this.canvas.style.cursor = this.isBoxPlacementActive
+  //     ? "crosshair"
+  //     : "default";
 
-    this.stateManager.setBoxPlacementActive(this.isBoxPlacementActive);
-  }
+  //   this.stateManager.setBoxPlacementActive(this.isBoxPlacementActive);
+  // }
 
   public toggleLightsPlacement(): void {
     this.isLightsPlacementActive = !this.isLightsPlacementActive;
     this.isRoomToolActive = false;
     this.isDoorPlacementActive = false;
     this.isDeleteToolActive = false;
-    this.isBoxPlacementActive = false;
+    // this.isBoxPlacementActive = false;
 
     this.modelScale = 1.7;
     this.stateManager.setModelScale(1.7);
@@ -700,18 +710,18 @@ export class UIManager {
   }
 
   private updateButtonStyles(): void {
-    this.deleteButtonElement.style.backgroundColor = this.isDeleteToolActive
-      ? "#00ff00"
-      : "#fff";
+    // this.deleteButtonElement.style.backgroundColor = this.isDeleteToolActive
+    //   ? "#00ff00"
+    //   : "#fff";
     this.doorButtonElement.style.backgroundColor = this.isDoorPlacementActive
       ? "#00ff00"
       : "#fff";
     this.roomToolElement.style.backgroundColor = this.isRoomToolActive
       ? "#00ff00"
       : "#fff";
-    this.boxButtonElement.style.backgroundColor = this.isBoxPlacementActive
-      ? "#00ff00"
-      : "#fff";
+    // this.boxButtonElement.style.backgroundColor = this.isBoxPlacementActive
+    //   ? "#00ff00"
+    //   : "#fff";
     this.lightsButtonElement.style.backgroundColor = this
       .isLightsPlacementActive
       ? "#00ff00"
@@ -736,6 +746,77 @@ export class UIManager {
           selectedObject.scale.set(value, value, value);
         }
       });
+
+    let mesh: THREE.Mesh;
+    selectedObject.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        mesh = child;
+      }
+    });
+
+    // Create a dropdown for the object type
+    const materialTypeControl = {
+      type:
+        mesh.material instanceof THREE.MeshStandardMaterial
+          ? "MeshStandardMaterial"
+          : "MeshLambertMaterial",
+    };
+
+    this.objectScaleFolder
+      .add(materialTypeControl, "type", [
+        "MeshStandardMaterial",
+        "MeshLambertMaterial",
+      ])
+      .name("Material Type")
+      .onChange((value) => {
+        selectedObject.traverse((child) => {
+          if (child instanceof THREE.Mesh) {
+            this.changeMaterialType(child, value);
+          }
+        });
+      });
+  }
+
+  private changeMaterialType(mesh: THREE.Mesh, newType: string): void {
+    const oldMaterial = mesh.material;
+    let newMaterial: THREE.Material;
+
+    // Create new material based on type
+    if (newType === "MeshStandardMaterial") {
+      newMaterial = new THREE.MeshStandardMaterial();
+    } else {
+      newMaterial = new THREE.MeshLambertMaterial();
+    }
+
+    // Copy properties from old material
+    if (
+      oldMaterial instanceof THREE.MeshStandardMaterial &&
+      newMaterial instanceof THREE.MeshLambertMaterial
+    ) {
+      newMaterial.copy(oldMaterial);
+      newMaterial.color = oldMaterial.color;
+      newMaterial.emissive = oldMaterial.emissive;
+      newMaterial.emissiveIntensity = oldMaterial.emissiveIntensity;
+      newMaterial.wireframe = oldMaterial.wireframe;
+      newMaterial.wireframeLinewidth = oldMaterial.wireframeLinewidth;
+      newMaterial.map = oldMaterial.map;
+    } else if (
+      oldMaterial instanceof THREE.MeshLambertMaterial &&
+      newMaterial instanceof THREE.MeshStandardMaterial
+    ) {
+      newMaterial.copy(oldMaterial);
+      newMaterial.color = oldMaterial.color;
+      newMaterial.emissive = oldMaterial.emissive;
+      newMaterial.emissiveIntensity = oldMaterial.emissiveIntensity;
+      newMaterial.wireframe = oldMaterial.wireframe;
+      newMaterial.wireframeLinewidth = oldMaterial.wireframeLinewidth;
+      newMaterial.metalness = 0;
+      newMaterial.roughness = 0;
+      newMaterial.opacity = 1;
+    }
+
+    // Apply new material
+    mesh.material = newMaterial;
   }
 
   public removeObjectScaleFolder(): void {

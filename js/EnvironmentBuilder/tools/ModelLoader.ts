@@ -352,10 +352,8 @@ export class ModelLoader {
                     !c.name.includes("front") &&
                     !c.name.includes("back")
                   ) {
-                    c.rotateY(-Math.PI / 2);
-                    console.log("c.name before", c.name);
+                    // c.rotateY(-Math.PI / 2);
                     c.name = c.name.replace("Doorway", "");
-                    console.log("c.name after", c.name);
                   } else if (c.name === "placeableObject") {
                     placeableObjects.push(c);
                   }

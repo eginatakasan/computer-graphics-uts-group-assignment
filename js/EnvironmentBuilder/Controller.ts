@@ -39,6 +39,10 @@ export class Controller {
       this.handleObjectSelection(object);
     });
 
+    stateManager.subscribe("deselectObject", (object) => {
+      this.handleDeselectObject(object);
+    });
+
     // Subscribe to placed objects changes
     stateManager.subscribe("placedObjectsChanged", (objects) => {
       this.dragControls.objects = objects;
@@ -199,20 +203,33 @@ export class Controller {
     });
   }
 
-  private handleObjectSelection(object: THREE.Object3D | null): void {
-    // Deselect previous object if exists
-    this.stateManager.placedObjects.forEach((obj) => {
-      obj.traverse((child) => {
+  private handleDeselectObject(object: THREE.Object3D): void {
+    if (object) {
+      object.traverse((child) => {
         if (child instanceof THREE.Mesh) {
           child.material.emissive.set(0x000000);
         }
       });
-    });
+    }
+  }
+
+  private handleObjectSelection(object: THREE.Object3D | null): void {
+    // Deselect previous object if exists
+    if (this.stateManager.selectedObject) {
+      this.stateManager.selectedObject.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.material.emissive.set(0x000000);
+        }
+      });
+    }
 
     // If an object was selected, highlight it
     if (object) {
+      console.log("highlighting object", object);
+      // Only highlight the specific selected object
       object.traverse((child) => {
         if (child instanceof THREE.Mesh) {
+          child.material = child.material.clone();
           child.material.emissive.set(0x00ff00);
         }
       });

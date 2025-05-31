@@ -672,9 +672,12 @@ function init() {
 
   if (window.location.pathname.includes("game.html")) {
     setTimeout(() => {
+      const messesCount = interactableObjects.filter(
+        (obj) => obj.userData.isMess
+      );
       document.getElementById(
         "messCounter"
-      ).textContent = `Mess Counter: ${interactableObjects.length}`;
+      ).textContent = `Mess Counter: ${messesCount.length}`;
     }, 1000); // delay to ensure messes loaded
   }
   // Load initial hands model

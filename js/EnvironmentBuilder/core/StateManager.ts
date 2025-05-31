@@ -29,7 +29,7 @@ export class StateManager {
   public lightIntensity: number = 5;
   public lightDistance: number = 100;
   public lightColor: number = 0xffffff;
-  public ceilingVisible: boolean = true;
+  public ceilingVisible: boolean = false;
 
   // Selection state
   public selectedObject: THREE.Object3D | null = null;
@@ -174,8 +174,12 @@ export class StateManager {
 
   // Selection getters/setters
   public setSelectedObject(object: THREE.Object3D | null): void {
+    if (object) {
+      this.notifyListeners("selectedObject", object);
+    } else {
+      this.notifyListeners("deselectObject", this.selectedObject);
+    }
     this.selectedObject = object;
-    this.notifyListeners("selectedObject", object);
   }
 
   public getSelectedObject(): THREE.Object3D | null {

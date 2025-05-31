@@ -61,7 +61,14 @@ export class EventManager {
         this.controller.scene.children,
         true
       );
+      console.log("intersects", intersects);
 
+      while (
+        intersects.length > 0 &&
+        !(intersects[0].object instanceof THREE.Mesh)
+      ) {
+        intersects.shift();
+      }
       if (intersects.length > 0) {
         const clickedObject = intersects[0].object;
         if (clickedObject instanceof THREE.Mesh) {
@@ -118,49 +125,53 @@ export class EventManager {
   }
 
   private handleObjectSelection(intersects: THREE.Intersection[]): void {
-    // Clear previous selection
-    if (this.stateManager.selectedObject) {
-      this.stateManager.setSelectedObject(null);
-      this.uiManager.removeObjectScaleFolder();
+    // If no intersects, just clear selection
+    // console.log("intersects", intersects);
+    if (intersects.length === 0 || intersects[0].object.type === "GridHelper") {
+      if (this.stateManager.selectedObject) {
+        this.stateManager.setSelectedObject(null);
+        this.uiManager.removeObjectScaleFolder();
+      }
+      return;
     }
 
-    // Set new selection
-    if (intersects.length > 0) {
-      const selectedMesh = intersects[0].object;
-      if (selectedMesh.name === "ground") {
-        return;
+    const selectedMesh = intersects[0].object;
+
+    // Don't select ground
+    if (selectedMesh.name === "ground") {
+      return;
+    }
+
+    // Handle room selection
+    const isRoomsSelectable = this.uiManager.isRoomsSelectableEnabled();
+    if (
+      !isRoomsSelectable &&
+      (selectedMesh.name.includes("Wall") ||
+        selectedMesh.name.includes("floor"))
+    ) {
+      return;
+    }
+
+    // Find the appropriate object to select
+    let objectToSelect = selectedMesh;
+    if (!isRoomsSelectable) {
+      // Find the top-level parent that's a placed object
+      const placedObjects = this.stateManager.placedObjects;
+      while (objectToSelect.parent && !placedObjects.includes(objectToSelect)) {
+        objectToSelect = objectToSelect.parent;
       }
 
-      console.log(selectedMesh);
-
-      const isRoomsSelectable = this.uiManager.isRoomsSelectableEnabled();
-      if (
-        !isRoomsSelectable &&
-        (selectedMesh.name.includes("Wall") ||
-          selectedMesh.name.includes("floor"))
-      ) {
+      // Only select if it's a placed object
+      if (!placedObjects.includes(objectToSelect)) {
         return;
-      } else {
-        if (isRoomsSelectable) {
-          this.stateManager.setSelectedObject(selectedMesh);
-          this.uiManager.createObjectScaleFolder(selectedMesh);
-        } else {
-          // Find the top-level parent that's a placed object
-          let parent = selectedMesh;
-          const placedObjects = this.stateManager.placedObjects;
-
-          while (parent.parent && !placedObjects.includes(parent)) {
-            parent = parent.parent;
-          }
-
-          if (placedObjects.includes(parent)) {
-            this.stateManager.setSelectedObject(parent);
-            // Create scale slider for selected object
-            this.uiManager.createObjectScaleFolder(parent);
-          }
-        }
       }
     }
+
+    // Set the selected object
+    this.stateManager.setSelectedObject(objectToSelect);
+
+    // Create scale folder for the selected object
+    this.uiManager.createObjectScaleFolder(objectToSelect);
   }
 
   private setupKeyboardShortcuts(): void {

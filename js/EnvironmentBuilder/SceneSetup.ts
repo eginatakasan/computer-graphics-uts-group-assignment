@@ -46,14 +46,14 @@ export class SceneSetup {
       map: grassTexture,
       side: THREE.DoubleSide,
     });
-    this.ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(this.sceneSize * 2, this.sceneSize * 2),
-      material
-    );
-    this.ground.name = "ground";
-    this.ground.rotation.x = -Math.PI / 2;
-    this.ground.position.y = -0.5;
-    this.scene.add(this.ground);
+    // this.ground = new THREE.Mesh(
+    //   new THREE.PlaneGeometry(this.sceneSize * 2, this.sceneSize * 2),
+    //   material
+    // );
+    // this.ground.name = "ground";
+    // this.ground.rotation.x = -Math.PI / 2;
+    // this.ground.position.y = -0.5;
+    // this.scene.add(this.ground);
   }
 
   private setupCamera(): void {
