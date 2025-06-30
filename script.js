@@ -788,6 +788,13 @@ function animate() {
           // Update mess counter
           document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
 
+          if (interactableObjects.length === 0) {
+            document.getElementById("messCounter").style.display = "none";
+            document.getElementById("endGameModal").style.display = "flex";
+            controls.unlock(); // Optionally stop movement
+          }
+
+
           // Note: cancelInteraction() will call switchToDefaultAnimation()
           cancelInteraction();
           highlightedObject = null;

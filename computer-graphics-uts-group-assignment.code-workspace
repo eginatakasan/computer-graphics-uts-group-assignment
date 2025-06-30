@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../Stain demo/paper-low"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "computer-graphics-uts-group-assignment"
+	}
+}
