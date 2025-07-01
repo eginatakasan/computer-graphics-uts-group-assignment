@@ -30,7 +30,7 @@ export class ModelLoader {
       // Create a group to hold the model
       const group = new THREE.Group();
       group.add(model);
-      group.name = "placeableObject";
+      group.name = "[placeableObject]";
 
       // Center the group
       const box = new THREE.Box3().setFromObject(model);
@@ -53,9 +53,9 @@ export class ModelLoader {
     // Use StateManager to add to placedObjects
     this.stateManager.addPlacedObject(group);
     // Add to drag controls
-    if (this.stateManager.dragControls) {
-      this.stateManager.dragControls.objects.push(group);
-    }
+    // if (this.stateManager.dragControls) {
+    //   this.stateManager.dragControls.objects.push(group);
+    // }
 
     return group;
   }
@@ -247,6 +247,27 @@ export class ModelLoader {
     URL.revokeObjectURL(url);
   }
 
+  public addCeilings(roomObjects: THREE.Object3D[]): THREE.Object3D[] {
+    roomObjects.forEach((obj) => {
+      obj.traverse((child) => {
+        if (child.name === "floor" && child instanceof THREE.Mesh) {
+          const ceiling = child.clone();
+          if (ceiling.geometry instanceof THREE.PlaneGeometry) {
+            ceiling.material = new THREE.MeshStandardMaterial({
+              color: 0xaaaaaa,
+              side: THREE.DoubleSide,
+            });
+            ceiling.up = new THREE.Vector3(0, -1, 0);
+            ceiling.position.y = 5;
+            ceiling.name = "ceiling";
+            obj.add(ceiling);
+          }
+        }
+      });
+    });
+    return roomObjects;
+  }
+
   public async loadPositions(): Promise<void> {
     const input = document.createElement("input");
     input.type = "file";
@@ -265,15 +286,15 @@ export class ModelLoader {
             new THREE.ObjectLoader().parse(json, (object) => {
               const placeableObjects: THREE.Object3D<THREE.Object3DEventMap>[] =
                 [];
-              const roomObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
+              let roomObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
               object.children.forEach((child, index) => {
                 if (child.name === "ground") {
                   return;
                 }
                 child.traverse((c) => {
-                  if (c instanceof THREE.Mesh) {
-                    c.material.emissive.set(0x000000);
-                  }
+                  // if (c instanceof THREE.Mesh) {
+                  //   c.material.emissive.set(0x000000);
+                  // }
 
                   if (c.name === "ground") {
                     roomObjects.push(c);
@@ -286,12 +307,44 @@ export class ModelLoader {
                   }
 
                   if (c.name.includes("[Door]")) {
-                    roomObjects.push(c);
+                    placeableObjects.push(c);
                     return;
                   }
 
                   if (c.name.includes("[placeableObject]")) {
                     placeableObjects.push(c);
+
+                    if (c.name.includes("[Lamp]")) {
+                      if (!c.userData.isOn) {
+                        c.userData.isOn = false;
+                      }
+                      c.traverse((child) => {
+                        if (
+                          child instanceof THREE.Mesh &&
+                          [
+                            "FloorLamp1_3",
+                            "FloorLamp1_2",
+                            "TableLamp1_3",
+                            "TableLamp1_2",
+                            "CeilingLamp1_2",
+                            "CeilingLamp5_2",
+                          ].includes(child.name)
+                        ) {
+                          child.material.emissive.set(0xffffff);
+
+                          if (
+                            child.name === "FloorLamp1_3" ||
+                            child.name === "TableLamp1_3" ||
+                            child.name === "CeilingLamp1_2" ||
+                            child.name === "CeilingLamp5_2"
+                          ) {
+                            child.material.emissiveIntensity = 1;
+                          } else {
+                            child.material.emissiveIntensity = 0.2;
+                          }
+                        }
+                      });
+                    }
                   }
 
                   if (
@@ -299,10 +352,8 @@ export class ModelLoader {
                     !c.name.includes("front") &&
                     !c.name.includes("back")
                   ) {
-                    c.rotateY(-Math.PI / 2);
-                    console.log("c.name before", c.name);
+                    // c.rotateY(-Math.PI / 2);
                     c.name = c.name.replace("Doorway", "");
-                    console.log("c.name after", c.name);
                   } else if (c.name === "placeableObject") {
                     placeableObjects.push(c);
                   }
@@ -311,24 +362,8 @@ export class ModelLoader {
 
               // Update placedObjects in state manager
 
-              roomObjects.forEach((obj) => {
-                obj.traverse((child) => {
-                  if (child.name.includes("Wall")) {
-                    if (child instanceof THREE.Mesh) {
-                      child.scale.set(1, 5 / 3, 1);
-                      child.geometry.computeBoundingBox();
-                      // const repeat = child.material.map?.repeat;
-                      // child.material.map.repeat.set(
-                      //   repeat.x,
-                      //   (repeat.y * 5) / 3
-                      // );
-                      const box = new THREE.Box3();
-                      box.copy(child.geometry.boundingBox);
-                      child.position.y = 2.5;
-                    }
-                  }
-                });
-              });
+              //addCeilings
+              // roomObjects = this.addCeilings(roomObjects);
 
               this.stateManager.setPlacedObjects(placeableObjects);
               this.stateManager.setRoomObjects(roomObjects);
@@ -355,5 +390,104 @@ export class ModelLoader {
     };
 
     input.click();
+  }
+
+  public loadPositionsAt(path: string): void {
+    fetch(path)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(
+            `Failed to load scene: ${response.status} ${response.statusText}`
+          );
+        }
+        return response.json();
+      })
+      .then((json) => {
+        this.stateManager.resetScene();
+
+        new THREE.ObjectLoader().parse(json, (object) => {
+          const placeableObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
+          const roomObjects: THREE.Object3D<THREE.Object3DEventMap>[] = [];
+          object.children.forEach((child, index) => {
+            if (child.name === "ground") {
+              return;
+            }
+            child.traverse((c) => {
+              if (c instanceof THREE.Mesh) {
+                c.material.emissive.set(0x000000);
+              }
+
+              if (c.name === "ground") {
+                roomObjects.push(c);
+                return;
+              }
+
+              if (c.name.includes("[Room]")) {
+                roomObjects.push(c);
+                return;
+              }
+
+              if (c.name.includes("[Door]")) {
+                roomObjects.push(c);
+                return;
+              }
+
+              if (c.name.includes("[placeableObject]")) {
+                placeableObjects.push(c);
+              }
+
+              if (
+                c.name.includes("Doorway") &&
+                !c.name.includes("front") &&
+                !c.name.includes("back")
+              ) {
+                c.rotateY(-Math.PI / 2);
+                console.log("c.name before", c.name);
+                c.name = c.name.replace("Doorway", "");
+                console.log("c.name after", c.name);
+              } else if (c.name === "placeableObject") {
+                placeableObjects.push(c);
+              }
+            });
+          });
+
+          // Update placedObjects in state manager
+
+          roomObjects.forEach((obj) => {
+            obj.traverse((child) => {
+              if (child.name.includes("Wall")) {
+                if (child instanceof THREE.Mesh) {
+                  child.scale.set(1, 5 / 3, 1);
+                  child.geometry.computeBoundingBox();
+                  // const repeat = child.material.map?.repeat;
+                  // child.material.map.repeat.set(
+                  //   repeat.x,
+                  //   (repeat.y * 5) / 3
+                  // );
+                  const box = new THREE.Box3();
+                  box.copy(child.geometry.boundingBox);
+                  child.position.y = 2.5;
+                }
+              }
+            });
+          });
+
+          this.stateManager.setPlacedObjects(placeableObjects);
+          this.stateManager.setRoomObjects(roomObjects);
+
+          // Update drag controls
+          if (this.stateManager.dragControls) {
+            this.stateManager.dragControls.objects = [...placeableObjects];
+          }
+
+          // Add loaded objects to scene
+          placeableObjects.forEach((obj) => {
+            this.stateManager.scene.add(obj);
+          });
+          roomObjects.forEach((obj) => {
+            this.stateManager.scene.add(obj);
+          });
+        });
+      });
   }
 }

@@ -16,7 +16,7 @@ export class SceneSetup {
     this.setupScene();
     this.setupRenderer(container);
     this.setupGrid();
-    this.setupLights();
+    this.setupAmbientLights();
     this.setupCamera();
   }
 
@@ -80,14 +80,9 @@ export class SceneSetup {
     this.scene.add(this.gridHelper);
   }
 
-  private setupLights(): void {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2);
+  private setupAmbientLights(): void {
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1);
     this.scene.add(ambientLight);
-
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 5, 5);
-    directionalLight.castShadow = true;
-    this.scene.add(directionalLight);
   }
 
   public getScene(): THREE.Scene {
@@ -111,7 +106,7 @@ export class SceneSetup {
 
   public resetScene(): void {
     this.setupGrid();
-    this.setupLights();
+    this.setupAmbientLights();
     this.setupCamera();
   }
 }

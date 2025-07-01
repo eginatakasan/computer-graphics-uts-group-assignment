@@ -183,10 +183,10 @@ export class DoorPlacer {
       );
     }
 
-    // this.makeAHole(wall.object as THREE.Mesh, position);
-    // if (wall1) {
-    //   this.makeAHole(wall1.object as THREE.Mesh, position);
-    // }
+    this.makeAHole(wall.object as THREE.Mesh, position);
+    if (wall1) {
+      this.makeAHole(wall1.object as THREE.Mesh, position);
+    }
 
     this.stateManager.scene.add(door);
     this.stateManager.addPlacedObject(door);
@@ -205,7 +205,7 @@ export class DoorPlacer {
     const wallBox = new THREE.Box3().copy(wall.geometry.boundingBox);
     const wallSize = wallBox.getSize(new THREE.Vector3());
     const wallWidth = isFrontOrBackWall ? wallSize.x : wallSize.z;
-    const wallHeight = 3;
+    const wallHeight = 5;
 
     // Convert door position to wall's local space
     const doorPosition = position.clone();
@@ -219,7 +219,7 @@ export class DoorPlacer {
 
     // Add new doorway
     const holeWidth = 2 - wallThickness;
-    const holeHeight = 2.5;
+    const holeHeight = 4;
     const holeX = isFrontOrBackWall ? doorPosition.x : doorPosition.z;
     doorways.push({
       x: holeX,

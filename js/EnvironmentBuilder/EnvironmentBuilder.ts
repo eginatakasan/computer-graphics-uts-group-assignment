@@ -11,6 +11,7 @@ import { TextureManager } from "./tools/TextureManager";
 import { UIManager } from "./UIManager";
 import { EventManager } from "./EventManager";
 import { BoxPlacer } from "./tools/BoxPlacer";
+import { LightsPlacer } from "./tools/LightsPlacer";
 
 export class EnvironmentBuilder {
   private container: HTMLElement;
@@ -20,6 +21,7 @@ export class EnvironmentBuilder {
   private modelLoader: ModelLoader;
   private roomBuilder: RoomBuilder;
   private doorPlacer: DoorPlacer;
+  private lightsPlacer: LightsPlacer;
   private textureManager: TextureManager;
   private boxPlacer: BoxPlacer;
   private uiManager: UIManager;
@@ -45,6 +47,8 @@ export class EnvironmentBuilder {
     this.roomBuilder = new RoomBuilder(this.stateManager);
 
     this.doorPlacer = new DoorPlacer(this.stateManager);
+
+    this.lightsPlacer = new LightsPlacer(this.stateManager);
 
     this.textureManager = new TextureManager(this.stateManager);
 
@@ -79,6 +83,7 @@ export class EnvironmentBuilder {
     this.uiManager.setTextureManager(this.textureManager);
     this.uiManager.setStateManager(this.stateManager);
     this.uiManager.setCommandManager(this.commandManager);
+    this.uiManager.setLightsPlacer(this.lightsPlacer);
 
     // Connect controller to UI manager
     this.controller.setUIManager(this.uiManager);

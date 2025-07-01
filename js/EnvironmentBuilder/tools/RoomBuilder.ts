@@ -80,7 +80,7 @@ export class RoomBuilder {
     isPreview: boolean = false
   ): THREE.Group {
     const room = new THREE.Group();
-    room.name = "room";
+    room.name = "[Room]";
 
     // Convert screen coordinates to world coordinates
     const startWorld = this.screenToWorld(startPoint.x, startPoint.y);
