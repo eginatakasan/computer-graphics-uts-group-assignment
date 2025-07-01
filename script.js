@@ -636,14 +636,14 @@ function init() {
   const modal = document.getElementById("startModal");
   const messCounter = document.getElementById("messCounter");
 
-  if (window.location.pathname.includes("game.html")) {
-    document.getElementById("startGameBtn").addEventListener("click", () => {
-      modal.style.display = "none";
-      messCounter.style.display = "block";
-      gameStarted = true;
-      controls.lock(); // lock view
-    });
-  }
+
+
+  document.getElementById("startGameBtn").addEventListener("click", () => {
+    modal.style.display = "none";
+    messCounter.style.display = "block";
+    gameStarted = true;
+    controls.lock(); // lock view
+  });
 
   // Progress Bar UI
   progressBarContainer = document.createElement("div");
@@ -670,16 +670,12 @@ function init() {
   loadHouse();
   setupInteractableObjects();
 
-  if (window.location.pathname.includes("game.html")) {
-    setTimeout(() => {
-      const messesCount = interactableObjects.filter(
-        (obj) => obj.userData.isMess
-      );
-      document.getElementById(
-        "messCounter"
-      ).textContent = `Mess Counter: ${messesCount.length}`;
-    }, 1000); // delay to ensure messes loaded
-  }
+
+
+  setTimeout(() => {
+    document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
+  }, 1000); // delay to ensure messes loaded  
+
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
 
@@ -759,9 +755,11 @@ function init() {
     }
   });
 
-  if (window.location.pathname.includes("game.html")) {
-    document.querySelector(".lil-gui")?.remove(); // Or gui.destroy();
+  if (window.location.pathname.includes('game.html') || window.location.pathname === '/' || window.location.includes('index.html')) {
+    document.querySelector('.lil-gui')?.remove();
+
   }
+
 }
 
 function onKeyDown(event) {
@@ -893,6 +891,13 @@ function animate() {
           document.getElementById("messCounter").textContent = `Mess Counter: ${
             interactableObjects.filter((obj) => obj.userData.isMess).length
           }`;
+
+          if (interactableObjects.length === 0) {
+            document.getElementById("messCounter").style.display = "none";
+            document.getElementById("endGameModal").style.display = "flex";
+            controls.unlock(); // Optionally stop movement
+          }
+
 
           // Note: cancelInteraction() will call switchToDefaultAnimation()
           cancelInteraction();
