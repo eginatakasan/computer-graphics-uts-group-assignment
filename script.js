@@ -560,14 +560,14 @@ function init() {
   const modal = document.getElementById("startModal");
   const messCounter = document.getElementById("messCounter");
 
-  if (window.location.pathname.includes('game.html')) {
-    document.getElementById("startGameBtn").addEventListener("click", () => {
-      modal.style.display = "none";
-      messCounter.style.display = "block";
-      gameStarted = true;
-      controls.lock(); // lock view
-    });
-  }
+
+  document.getElementById("startGameBtn").addEventListener("click", () => {
+    modal.style.display = "none";
+    messCounter.style.display = "block";
+    gameStarted = true;
+    controls.lock(); // lock view
+  });
+
 
   // Progress Bar UI
   progressBarContainer = document.createElement("div");
@@ -594,11 +594,11 @@ function init() {
   loadHouse();
   setupInteractableObjects();
 
-  if (window.location.pathname.includes('game.html')) {
-    setTimeout(() => {
-      document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
-    }, 1000); // delay to ensure messes loaded  
-  }
+
+  setTimeout(() => {
+    document.getElementById("messCounter").textContent = `Mess Counter: ${interactableObjects.length}`;
+  }, 1000); // delay to ensure messes loaded  
+
   // Load initial hands model
   loadHandsModel("fp_arms.glb");
 
@@ -657,9 +657,10 @@ function init() {
     }
   });
 
-  if (window.location.pathname.includes('game.html')) {
-    document.querySelector('.lil-gui')?.remove(); // Or gui.destroy();
+  if (window.location.pathname.includes('game.html') || window.location.pathname === '/' || window.location.includes('index.html')) {
+    document.querySelector('.lil-gui')?.remove();
   }
+
 }
 
 function onKeyDown(event) {
